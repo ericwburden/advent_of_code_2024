@@ -10,6 +10,13 @@ pub type SafetyInspector {
   Unsafe
 }
 
+pub fn is_safe(inspector: SafetyInspector) -> Bool {
+  case inspector {
+    Unsafe -> False
+    _ -> True
+  }
+}
+
 pub fn inspect_next_value(
   inspector: SafetyInspector,
   next_value: Int,
@@ -29,13 +36,9 @@ pub fn inspect_next_value(
 }
 
 pub fn is_safe_report(report: Report) -> Bool {
-  let inspector_result =
-    list.fold(over: report, from: Initializing, with: inspect_next_value)
-
-  case inspector_result {
-    Unsafe -> False
-    _ -> True
-  }
+  report
+  |> list.fold(from: Initializing, with: inspect_next_value)
+  |> is_safe
 }
 
 pub fn solve(input: Input) -> Output {
