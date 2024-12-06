@@ -10,7 +10,7 @@ const part1_answer = Ok(5087)
 
 const example2_answer = Ok(123)
 
-const part2_answer = Ok(0)
+const part2_answer = Ok(4971)
 
 pub fn example1_test() {
   day05.example1_path
