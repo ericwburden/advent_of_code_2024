@@ -1,3 +1,4 @@
+/// A nice data type for the page ordering rules
 pub type PageOrderingRule {
   PageOrderingRule(page: Int, after: Int)
 }

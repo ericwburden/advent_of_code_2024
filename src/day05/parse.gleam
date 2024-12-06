@@ -5,12 +5,14 @@ import gleam/result
 import gleam/string
 import simplifile
 
+/// We've seen this one before. [Int] parsing with error messages.
 fn parse_int_with_err(str: String) -> Result(Int, String) {
   str
   |> int.parse
   |> result.replace_error("Could not parse an Int from '" <> str <> "'!")
 }
 
+/// Parses a line from the input into a [PageOrderingRule]
 fn parse_rule(str: String) -> Result(PageOrderingRule, String) {
   let split_result =
     str
@@ -18,12 +20,16 @@ fn parse_rule(str: String) -> Result(PageOrderingRule, String) {
     |> result.replace_error(
       "Could not split '" <> str <> "' into parts by '|'!",
     )
+
+  // Parse each number string into an [Int] and return the [PageOrderingRule] from
+  // these two numbers.
   use #(left_str, right_str) <- result.try(split_result)
   use page <- result.try(parse_int_with_err(left_str))
   use after <- result.map(parse_int_with_err(right_str))
   day05.PageOrderingRule(page, after)
 }
 
+/// Parses a comma-separated list of strings into a [List(Int)]
 fn parse_int_list(str: String) -> Result(List(Int), String) {
   str |> string.split(",") |> list.map(parse_int_with_err) |> result.all
 }
