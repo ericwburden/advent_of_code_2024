@@ -11,6 +11,16 @@
             ]
         }
     },
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/ssh-agent"
+    },
+    "mounts": [
+        "source=${env:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
     "forwardPorts": [8000], 
     "remoteUser": "vscode"
 }
