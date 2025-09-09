@@ -1,5 +1,5 @@
 import day04/day04.{
-  type CharGrid, type Index2D, type Input, type Output, A, Index2D, M, S,
+  type CharGrid, type Index2D, type Input, type Output, A, M, S,
 }
 import day04/part1.{
   None, NorthEast, NorthWest, SouthEast, SouthWest, nudge_index,
@@ -14,19 +14,31 @@ import gleam/result
 // dynamically, I've opted to hard-code them.
 const possible_patterns = [
   [
-    #(None, A), #(NorthWest, M), #(SouthEast, S), #(NorthEast, M),
+    #(None, A),
+    #(NorthWest, M),
+    #(SouthEast, S),
+    #(NorthEast, M),
     #(SouthWest, S),
   ],
   [
-    #(None, A), #(NorthEast, M), #(SouthWest, S), #(SouthEast, M),
+    #(None, A),
+    #(NorthEast, M),
+    #(SouthWest, S),
+    #(SouthEast, M),
     #(NorthWest, S),
   ],
   [
-    #(None, A), #(SouthEast, M), #(NorthWest, S), #(SouthWest, M),
+    #(None, A),
+    #(SouthEast, M),
+    #(NorthWest, S),
+    #(SouthWest, M),
     #(NorthEast, S),
   ],
   [
-    #(None, A), #(NorthWest, M), #(SouthEast, S), #(SouthWest, M),
+    #(None, A),
+    #(NorthWest, M),
+    #(SouthEast, S),
+    #(SouthWest, M),
     #(NorthEast, S),
   ],
 ]
