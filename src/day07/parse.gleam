@@ -5,15 +5,21 @@ import gleam/result
 import gleam/string
 import simplifile
 
+/// Given a string composed of numbers separated by spaces, parse that string
+/// into a list of integers.
 pub fn parse_space_separated_int_list(
   input: String,
 ) -> Result(List(Int), String) {
+  // Clean up the string, split on spaces, and drop any empty strings
   let tokens =
     input
     |> string.trim
     |> string.split(" ")
     |> list.filter(fn(s) { s != "" })
 
+  // Accumulate the parsed integers into a list. Short-circuits if any string
+  // is found that cannot be parsed into an integer, returning an error
+  // message in that case.
   list.fold(tokens, Ok([]), fn(acc, token) {
     use parsed <- result.try(acc)
     use n <- result.try(
@@ -28,8 +34,16 @@ pub fn parse_space_separated_int_list(
   |> result.map(list.reverse)
 }
 
+/// Parse an entire line from the input, representing a single set of equation
+/// parts. Includes the target value and the numbers that can potentially
+/// be combined to yield that target value.
 pub fn parse_line(line: String) -> Result(day07.EquationParts, String) {
+  // Attempt to split on the colon, yielding two parts. If anything else
+  // results, return an error messaage.
   case string.split(line, ":") {
+    // If there are two parts, parse the left part into an integer and the
+    // right part into a list of integers (assumes space-separated). Return
+    // the appropriate error message if either part fails.
     [test_str, comps_str] ->
       case int.parse(string.trim(test_str)) {
         Ok(test_val) -> {
@@ -43,6 +57,8 @@ pub fn parse_line(line: String) -> Result(day07.EquationParts, String) {
   }
 }
 
+/// Read theh input file and parse each line into an [EquationParts] and
+/// return the list.
 pub fn read_input(input_path) -> Input {
   let assert Ok(contents) = simplifile.read(input_path)
   string.split(contents, on: "\n")
