@@ -6,11 +6,11 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "gleam.gleam", // Gleam Language Server extension
-                "ms-vscode.live-server" // Example: if you need a web server
+                "gleam.gleam",
+                "ms-vscode.live-server"
             ]
         }
     },
-    "forwardPorts": [8000], // Example: if your Gleam app serves on port 8000
+    "forwardPorts": [8000], 
     "remoteUser": "vscode"
 }
