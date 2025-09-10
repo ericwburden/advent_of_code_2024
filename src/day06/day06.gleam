@@ -1,4 +1,4 @@
-import day04/day04
+import common/types.{type Index2D}
 import gleam/dict.{type Dict}
 
 /// It's helpful to have the cardinal directions as type variants
@@ -19,13 +19,13 @@ pub type Space {
 /// The Guard will move around the map, and they will have their current
 /// location and the direction they are heading.
 pub type Guard {
-  Guard(location: day04.Index2D, direction: Direction)
+  Guard(location: Index2D, direction: Direction)
 }
 
 /// The grid the Guard moves around on, a mapping of spatial index to the
 /// type of space on the grid.
 pub type PatrolMap =
-  Dict(day04.Index2D, Space)
+  Dict(Index2D, Space)
 
 /// In order to find the length of the Guard's path, we just need the
 /// Guard's location and the map for them to move around on.

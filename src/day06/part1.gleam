@@ -1,4 +1,4 @@
-import day04/day04
+import common/types.{Index2D}
 import day06/day06.{type Guard, type Input, type Output, type PatrolMap}
 import gleam/dict
 import gleam/list
@@ -13,12 +13,12 @@ pub fn move_guard(guard: Guard, patrol_map: PatrolMap) -> Result(Guard, Nil) {
     False -> panic as "Guard started off the map somehow!"
     True -> {
       // Find the index of the next space the guard wants to move to.
-      let day04.Index2D(row, col) = guard.location
+      let Index2D(row, col) = guard.location
       let next_space_idx = case guard.direction {
-        day06.East -> day04.Index2D(..guard.location, col: col + 1)
-        day06.North -> day04.Index2D(..guard.location, row: row - 1)
-        day06.South -> day04.Index2D(..guard.location, row: row + 1)
-        day06.West -> day04.Index2D(..guard.location, col: col - 1)
+        day06.East -> Index2D(..guard.location, col: col + 1)
+        day06.North -> Index2D(..guard.location, row: row - 1)
+        day06.South -> Index2D(..guard.location, row: row + 1)
+        day06.West -> Index2D(..guard.location, col: col - 1)
       }
 
       // If that space is empty, move the guard there. If it's an obstacle,

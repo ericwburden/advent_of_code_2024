@@ -1,6 +1,5 @@
-import day04/day04.{
-  type CharGrid, type Index2D, type Input, type Output, A, M, S,
-}
+import common/types.{type Index2D}
+import day04/day04.{type CharGrid, type Input, type Output, A, M, S}
 import day04/part1.{
   None, NorthEast, NorthWest, SouthEast, SouthWest, nudge_index,
 }

@@ -1,6 +1,5 @@
-import day04/day04.{
-  type CharGrid, type Index2D, type Input, type Output, A, Index2D, M, S, X,
-}
+import common/types.{type Index2D, Index2D}
+import day04/day04.{type CharGrid, type Input, type Output, A, M, S, X}
 import gleam/dict
 import gleam/int
 import gleam/list

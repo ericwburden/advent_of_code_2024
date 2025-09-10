@@ -1,3 +1,4 @@
+import common/types.{type Index2D}
 import gleam/dict
 
 /// Turns out Gleam doesn't have a `character` data type, so to avoid the
@@ -8,11 +9,6 @@ pub type Char {
   M
   A
   S
-}
-
-/// This will be the index for each character in the original grid.
-pub type Index2D {
-  Index2D(row: Int, col: Int)
 }
 
 /// Also, it seems like Gleam's lists are not well-suited to indexing, being

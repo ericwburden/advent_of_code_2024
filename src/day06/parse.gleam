@@ -1,4 +1,4 @@
-import day04/day04
+import common/types.{type Index2D, Index2D}
 import day06/day06.{type Input}
 import gleam/dict
 import gleam/list
@@ -21,12 +21,12 @@ fn parse_space(str: String) -> Result(day06.Space, Nil) {
 
 /// Parses an entire row from the input text into a list of indices and the [Space]
 /// at that index.
-fn parse_row(row: Int, str: String) -> List(#(day04.Index2D, day06.Space)) {
+fn parse_row(row: Int, str: String) -> List(#(Index2D, day06.Space)) {
   string.to_graphemes(str)
   |> list.index_map(fn(char, col) { #(char, col) })
   |> list.filter_map(fn(char_and_col) {
     let #(char, col) = char_and_col
-    parse_space(char) |> result.map(fn(s) { #(day04.Index2D(row, col), s) })
+    parse_space(char) |> result.map(fn(s) { #(Index2D(row, col), s) })
   })
 }
 
@@ -59,8 +59,7 @@ pub fn read_input(input_path) -> Input {
     |> list.flatten
     |> list.find_map(fn(row_col_char) {
       case row_col_char {
-        #(row, col, "^") ->
-          Ok(day06.Guard(day04.Index2D(row, col), day06.North))
+        #(row, col, "^") -> Ok(day06.Guard(Index2D(row, col), day06.North))
         _ -> Error(Nil)
       }
     })

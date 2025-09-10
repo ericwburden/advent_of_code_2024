@@ -1,4 +1,5 @@
-import day04/day04.{type Char, type Index2D, type Input, A, Index2D, M, S, X}
+import common/types.{type Index2D, Index2D}
+import day04/day04.{type Char, type Input, A, M, S, X}
 import gleam/dict
 import gleam/list
 import gleam/result
