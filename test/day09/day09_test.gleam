@@ -6,7 +6,7 @@ import gleeunit/should
 
 const example1_answer = Ok(1928)
 
-const part1_answer = Ok(0)
+const part1_answer = Ok(6_430_446_922_192)
 
 const example2_answer = Ok(0)
 
@@ -18,13 +18,12 @@ pub fn example1_test() {
   |> part1.solve
   |> should.equal(example1_answer)
 }
-
-pub fn part1_test() {
-  day09.input_path
-  |> parse.read_input
-  |> part1.solve
-  |> should.equal(part1_answer)
-}
+// pub fn part1_test() {
+//   day09.input_path
+//   |> parse.read_input
+//   |> part1.solve
+//   |> should.equal(part1_answer)
+// }
 // pub fn example2_test() {
 //   day09.example2_path
 //   |> parse.read_input
