@@ -18,12 +18,13 @@ pub fn example1_test() {
   |> part1.solve
   |> should.equal(example1_answer)
 }
-// pub fn part1_test() {
-//   day09.input_path
-//   |> parse.read_input
-//   |> part1.solve
-//   |> should.equal(part1_answer)
-// }
+
+pub fn part1_test() {
+  day09.input_path
+  |> parse.read_input
+  |> part1.solve
+  |> should.equal(part1_answer)
+}
 // pub fn example2_test() {
 //   day09.example2_path
 //   |> parse.read_input

@@ -1,13 +1,3 @@
-pub type FileOrFreeSpace {
-  FileBlock(Int)
-  FreeSpace
-}
-
-pub type BlockAccumulator {
-  FileAccumulator(blocks: List(FileOrFreeSpace))
-  FreeSpaceAccumulator(blocks: List(FileOrFreeSpace))
-}
-
 pub type Input =
   Result(List(Int), String)
 
