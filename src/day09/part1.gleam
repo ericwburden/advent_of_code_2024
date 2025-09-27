@@ -1,59 +1,93 @@
-import common/read_only_deque.{type ReadOnlyDeque}
 import day09/day09.{type Input, type Output}
 import day09/parse
+import gleam/deque
 import gleam/io
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/result
 
-pub type FileOrFreeSpace {
-  FileBlock(Int)
-  FreeSpace
+pub type DiskContents {
+  File(id: Int, len: Int)
+  FreeSpace(len: Int)
 }
 
-fn expand_disk_map(disk_map: List(Int)) -> ReadOnlyDeque(FileOrFreeSpace) {
-  let #(_, expanded_list) =
-    list.index_fold(disk_map, #(True, []), fn(acc, n, idx) {
+pub type DiskBlock {
+  FileBlock(id: Int)
+  FreeBlock
+}
+
+pub type DiskMap =
+  deque.Deque(DiskContents)
+
+fn make_disk_map(input: List(Int)) -> DiskMap {
+  let #(_, disk_map) =
+    list.index_fold(input, #(True, []), fn(acc, n, idx) {
       case acc {
         #(True, blocks_so_far) -> {
-          let next_blocks = list.repeat(FileBlock(idx / 2), n)
-          let all_blocks = list.append(blocks_so_far, next_blocks)
+          let file = File(idx / 2, n)
+          let all_blocks = [file, ..blocks_so_far]
           #(False, all_blocks)
         }
         #(False, blocks_so_far) -> {
-          let next_blocks = list.repeat(FreeSpace, n)
-          let all_blocks = list.append(blocks_so_far, next_blocks)
+          let free = FreeSpace(n)
+          let all_blocks = [free, ..blocks_so_far]
           #(True, all_blocks)
         }
       }
     })
 
-  read_only_deque.from_list(expanded_list)
+  disk_map |> list.reverse |> deque.from_list
 }
 
-fn compact_files(expanded_disk_map: ReadOnlyDeque(FileOrFreeSpace)) -> List(Int) {
-  case read_only_deque.pop_front(expanded_disk_map) {
-    None -> []
-    Some(#(block, edm)) -> recurse_compact_files(block, edm, [])
+fn pop_first_block(disk_map: DiskMap) -> Result(#(DiskBlock, DiskMap), Nil) {
+  let deque_pop_result = deque.pop_front(disk_map)
+  use #(first, rest) <- result.try(deque_pop_result)
+
+  case first {
+    File(_, 0) | FreeSpace(0) -> pop_first_block(rest)
+    File(id, len) -> {
+      let dm = deque.push_front(rest, File(id, len - 1))
+      Ok(#(FileBlock(id), dm))
+    }
+    FreeSpace(len) -> {
+      let dm = deque.push_front(rest, FreeSpace(len - 1))
+      Ok(#(FreeBlock, dm))
+    }
   }
 }
 
-fn recurse_compact_files(
-  next_block: FileOrFreeSpace,
-  expanded_disk_map: ReadOnlyDeque(FileOrFreeSpace),
-  acc: List(Int),
-) -> List(Int) {
-  case next_block {
-    FileBlock(n) ->
-      case read_only_deque.pop_front(expanded_disk_map) {
-        None -> list.reverse([n, ..acc])
-        Some(#(block, rest)) -> recurse_compact_files(block, rest, [n, ..acc])
-      }
-    FreeSpace ->
-      case read_only_deque.pop_back(expanded_disk_map) {
-        None -> list.reverse(acc)
-        Some(#(block, rest)) -> recurse_compact_files(block, rest, acc)
-      }
+fn pop_last_file_block_id(disk_map: DiskMap) -> Result(#(Int, DiskMap), Nil) {
+  let deque_pop_result = deque.pop_back(disk_map)
+  use #(first, rest) <- result.try(deque_pop_result)
+
+  case first {
+    File(_, 0) | FreeSpace(_) -> pop_last_file_block_id(rest)
+    File(id, len) -> {
+      let dm = deque.push_back(rest, File(id, len - 1))
+      Ok(#(id, dm))
+    }
+  }
+}
+
+fn pop_next_checksum_value(disk_map: DiskMap) -> Result(#(Int, DiskMap), Nil) {
+  let pop_first_block_result = pop_first_block(disk_map)
+  use #(first, rest) <- result.try(pop_first_block_result)
+  case first {
+    FileBlock(id) -> Ok(#(id, rest))
+    FreeBlock -> pop_last_file_block_id(rest)
+  }
+}
+
+fn calculate_checksum(disk_map: DiskMap) -> Int {
+  recurse_calculate_checksum(disk_map, 0, 0)
+}
+
+fn recurse_calculate_checksum(disk_map: DiskMap, idx: Int, acc: Int) -> Int {
+  case pop_next_checksum_value(disk_map) {
+    Error(_) -> acc
+    Ok(#(next_value, rest)) -> {
+      let acc = acc + { idx * next_value }
+      recurse_calculate_checksum(rest, idx + 1, acc)
+    }
   }
 }
 
@@ -62,14 +96,12 @@ pub fn solve(input: Input) -> Output {
 
   let checksum =
     input
-    |> expand_disk_map
-    |> compact_files
-    |> list.index_fold(0, fn(acc, n, idx) { acc + { n * idx } })
+    |> make_disk_map
+    |> calculate_checksum
 
   Ok(checksum)
 }
 
-/// Apparently running this takes too long for the unit test framework. Lame!
 pub fn main() -> Output {
   day09.input_path
   |> parse.read_input
