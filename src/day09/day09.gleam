@@ -1,6 +1,11 @@
+/// Because both parts end up needing slightly different data structures to
+/// calculate the disk checksum efficiently, we'll keep the [Input] simple
+/// as just the list of integers in the input file.
 pub type Input =
   Result(List(Int), String)
 
+/// The results for this puzzle will be a calculated checksum value in the 
+/// form of an integer.
 pub type Output =
   Result(Int, String)
 
