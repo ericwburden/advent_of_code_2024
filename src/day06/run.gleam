@@ -4,9 +4,9 @@ import day06/part1
 import day06/part2
 import gleam/io
 
-pub const part1_expected = 0
+pub const part1_expected = 4454
 
-pub const part2_expected = 0
+pub const part2_expected = 1503
 
 pub fn main() {
   let input = parse.read_input(day06.input_path)

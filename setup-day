@@ -149,9 +149,36 @@ pub fn example1_test() {
 EOL
 
 # Fetch the input with aoc-cli
-INPUT_PATH="${INPUT_PATH}/input.txt"
+INPUT_PATH="${RESOURCE_PATH}/input.txt"
 aoc -s $COOKIE -y "$YEAR" -d "$DAY" -I -i "$INPUT_PATH" -o download
 
 # Create a blank file for the first example (others can be created manually)
 touch "${EXAMPLE_PATH}/example1.txt"
 touch "${EXAMPLE_PATH}/example2.txt"
+
+# Update the main entrypoint to run all days
+RUNNER="src/advent_of_code_2024.gleam"
+
+echo "// Auto-generated runner for all solved days" > "$RUNNER"
+echo "" >> "$RUNNER"
+
+# gather imports
+for daydir in src/day??; do
+  if [ -f "$daydir/run.gleam" ]; then
+    daynum=$(basename "$daydir")
+    echo "import ${daynum}/run as ${daynum}_run" >> "$RUNNER"
+  fi
+done
+
+echo "" >> "$RUNNER"
+echo "pub fn main() {" >> "$RUNNER"
+
+# gather calls
+for daydir in src/day??; do
+  if [ -f "$daydir/run.gleam" ]; then
+    daynum=$(basename "$daydir")
+    echo "  ${daynum}_run.main()" >> "$RUNNER"
+  fi
+done
+
+echo "}" >> "$RUNNER"

@@ -1,5 +1,27 @@
-import gleam/io
+// Auto-generated runner for all solved days
+
+import day01/run as day01_run
+import day02/run as day02_run
+import day03/run as day03_run
+import day04/run as day04_run
+import day05/run as day05_run
+import day06/run as day06_run
+import day07/run as day07_run
+import day08/run as day08_run
+import day09/run as day09_run
+import day10/run as day10_run
+import day11/run as day11_run
 
 pub fn main() {
-  io.println("Hello from advent_of_code_2024!")
+  day01_run.main()
+  day02_run.main()
+  day03_run.main()
+  day04_run.main()
+  day05_run.main()
+  day06_run.main()
+  day07_run.main()
+  day08_run.main()
+  day09_run.main()
+  day10_run.main()
+  day11_run.main()
 }
