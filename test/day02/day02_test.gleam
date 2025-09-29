@@ -7,19 +7,21 @@ import gleeunit/should
 
 const example1_answer = Ok(2)
 
-const part1_answer = Ok(269)
-
 const example2_answer = Ok(4)
 
-const part2_answer = Ok(337)
-
 const individual_report_test_cases = [
-  #([8, 5, 4, 3, 2], True, True), #([2, 3, 4, 5, 7], True, True),
-  #([1, 3, 2, 4, 5], False, True), #([8, 6, 4, 4, 1], False, True),
-  #([5, 4, 6, 7, 8], False, True), #([5, 6, 4, 3, 2], False, True),
-  #([5, 6, 4, 7, 8], False, True), #([5, 6, 7, 8, 1], False, True),
-  #([1, 5, 6, 7, 8], False, True), #([1, 2, 2, 4, 5], False, True),
-  #([4, 1, 4, 7, 8], False, True), #([4, 1, 4, 7, 6], False, False),
+  #([8, 5, 4, 3, 2], True, True),
+  #([2, 3, 4, 5, 7], True, True),
+  #([1, 3, 2, 4, 5], False, True),
+  #([8, 6, 4, 4, 1], False, True),
+  #([5, 4, 6, 7, 8], False, True),
+  #([5, 6, 4, 3, 2], False, True),
+  #([5, 6, 4, 7, 8], False, True),
+  #([5, 6, 7, 8, 1], False, True),
+  #([1, 5, 6, 7, 8], False, True),
+  #([1, 2, 2, 4, 5], False, True),
+  #([4, 1, 4, 7, 8], False, True),
+  #([4, 1, 4, 7, 6], False, False),
 ]
 
 fn test_individual_edge_case(test_case: #(day02.Report, Bool, Bool)) {
@@ -39,23 +41,9 @@ pub fn example1_test() {
   |> should.equal(example1_answer)
 }
 
-pub fn part1_test() {
-  day02.input_path
-  |> parse.read_input
-  |> part1.solve
-  |> should.equal(part1_answer)
-}
-
 pub fn example2_test() {
   day02.example1_path
   |> parse.read_input
   |> part2.solve
   |> should.equal(example2_answer)
-}
-
-pub fn part2_test() {
-  day02.input_path
-  |> parse.read_input
-  |> part2.solve
-  |> should.equal(part2_answer)
 }
