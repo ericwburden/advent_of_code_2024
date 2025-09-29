@@ -16,36 +16,35 @@ excited to learn my first language on the BEAM.
 
 ```
 <project root>
-├─src
-│ └─day##
-│   ├─day##.gleam
-│   ├─parse.gleam
-│   ├─part1.gleam
-│   └─part2.gleam
-├─test
-│ └─day##
-│   ├─examples
-│   │ ├─example1.txt
-│   │ └─example2.txt
-│   ├─input
-│   │ └─input.txt
-│   └day##_test.gleam
-├─test
-├─setup-day
-├─gleam.toml
-├─manifest.toml
-└─README.md
+├─ inputs
+│  └─ day##/input.txt     # puzzle input files (not committed to GitHub)
+├─ src
+│  ├─ common/             # shared helpers (grid2d, types, etc.)
+│  └─ day##/
+│     ├─ day##.gleam      # defines Input/Output types and input_path
+│     ├─ parse.gleam      # parsing logic
+│     ├─ part1.gleam      # solution for Part 1
+│     ├─ part2.gleam      # solution for Part 2
+│     └─ run.gleam        # runner with expected answers and self-checks
+├─ test                   # tests are for examples only
+│  └─ day##/
+│     ├─ day##_test.gleam # unit tests
+│     └─ examples/        # sample example input files
+├─ setup-day              # helper script to scaffold new days
+├─ gleam.toml             # Gleam project configuration
+├─ manifest.toml          # Dependency manifest
+└─ README.md
 ```
 
-There are a few organizational notes to point out here:
+A few notes:
 
-- The code for each day is broken up into three files. `day##.gleam` is used to define
-  the Input and Output types and to hold the relative file paths to the various input
-  text files. `parse.gleam` holds the code for parsing the input files. `part1.gleam`
-  and `part2.gleam` hold the code for solving the two parts of the day's puzzle.
-- Each day's input and examples are stored in their own text files and are parsed from
-  there. I tend to avoid hard-coding inputs whenever I can, preferring to parse them
-  from text.
+- Each day’s code is broken up into three core files plus a run.gleam.
+  - day##.gleam: holds types and the input path.
+  - parse.gleam: parsing logic.
+  - part1.gleam / part2.gleam: puzzle solutions.
+  - run.gleam: self-checks against expected answers.
+- All puzzle inputs live under the top-level inputs/ directory. These are not committed to GitHub, per AoC guidelines.
+- Example inputs and tests live under test/day##/examples/.
   
 ## Usage
   
@@ -58,4 +57,25 @@ This project also include a `setup-day` bash script that leverages the
 the days' code and test files, download the input files, name them, and
 place them in the correct folder. The script can be invoked as 
 `setup-day {day} {year}`, where the year argument is optional.
+
+## Running Solutions
+
+### Run an Individual Day
+
+Each day folder contains a run.gleam file with a main function that checks the
+solutions for that day against the expected results.
+
+To run, for example, Day 03:  `gleam run -m day03/run`
+
+This will parse the day’s input, run both parts, and print ✅ or 🛑 depending on whether
+the results match the expected answers.
+
+### Run All Days
+
+At the top level, there’s an orchestrator module: `src/advent_of_code_2024.gleam`.
+This imports each dayxx/run and calls their main functions in order.
+
+To run all solved days in sequence: `gleam run -m advent_of_code_2024`
+
+This will execute each run.gleam and print results for every available day.
 
