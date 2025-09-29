@@ -42,7 +42,7 @@ fi
 # Ensure the paths exist
 SOLUTION_PATH="src/${DAYSTR}"
 EXAMPLE_PATH="test/day${PADDED}/examples"
-RESOURCE_PATH="test/day${PADDED}/input"
+RESOURCE_PATH="answers/day${PADDED}"
 mkdir -p $SOLUTION_PATH # Ensure directory exists
 mkdir -p $EXAMPLE_PATH  # Ensure directory exists
 mkdir -p $RESOURCE_PATH # Ensure directory exists
@@ -54,7 +54,7 @@ pub type Input =
 pub type Output =
   Nil
 
-pub const input_path = "test/${DAYSTR}/input/input.txt"
+pub const input_path = "answers/${DAYSTR}/input.txt"
 
 pub const example1_path = "test/${DAYSTR}/examples/example1.txt"
 
@@ -88,6 +88,40 @@ pub fn solve(input: Input) -> Output {
 }
 EOL
 
+cat >"${SOLUTION_PATH}/run.gleam" <<EOL
+import ${DAYSTR}/${DAYSTR}
+import ${DAYSTR}/parse
+import ${DAYSTR}/part1
+import ${DAYSTR}/part2
+import gleam/io
+
+pub const part1_expected = 0
+
+pub const part2_expected = 0
+
+pub fn main() {
+  let input = parse.read_input(day01.input_path)
+
+  case part1.solve(input) {
+    Ok(result) ->
+      case result == part1_expected {
+        True -> io.println("✅ Passed Day ${PADDED}, Part 1")
+        False -> panic as "🛑 Failed Day ${PADDED}, Part 1"
+      }
+    Error(s) -> panic as s
+  }
+
+  case part2.solve(input) {
+    Ok(result) ->
+      case result == part2_expected {
+        True -> io.println("✅ Passed Day ${PADDED}, Part 2")
+        False -> panic as "🛑 Failed Day ${PADDED}, Part 2"
+      }
+    Error(s) -> panic as s
+  }
+}
+EOL
+
 cat >"${TEST_PATH}/${DAYSTR}_test.gleam" <<EOL
 import ${DAYSTR}/${DAYSTR}
 import ${DAYSTR}/parse
@@ -97,11 +131,7 @@ import gleeunit/should
 
 const example1_answer = Nil
 
-const part1_answer = Nil
-
 const example2_answer = Nil
-
-const part2_answer = Nil
 
 pub fn example1_test() {
   ${DAYSTR}.example1_path
@@ -110,30 +140,16 @@ pub fn example1_test() {
   |> should.equal(example1_answer)
 }
 
-// pub fn part1_test() {
-//   ${DAYSTR}.input_path
-//   |> parse.read_input
-//   |> part1.solve
-//   |> should.equal(part1_answer)
-// }
-
 // pub fn example2_test() {
 //   ${DAYSTR}.example2_path
 //   |> parse.read_input
 //   |> part2.solve
 //   |> should.equal(example2_answer)
 // }
-
-// pub fn part2_test() {
-//   ${DAYSTR}.input_path
-//   |> parse.read_input
-//   |> part2.solve
-//   |> should.equal(part2_answer)
-// }
 EOL
 
 # Fetch the input with aoc-cli
-INPUT_PATH="${RESOURCE_PATH}/input.txt"
+INPUT_PATH="${INPUT_PATH}/input.txt"
 aoc -s $COOKIE -y "$YEAR" -d "$DAY" -I -i "$INPUT_PATH" -o download
 
 # Create a blank file for the first example (others can be created manually)
