@@ -42,7 +42,7 @@ fi
 # Ensure the paths exist
 SOLUTION_PATH="src/${DAYSTR}"
 EXAMPLE_PATH="test/day${PADDED}/examples"
-RESOURCE_PATH="answers/day${PADDED}"
+RESOURCE_PATH="inputs/day${PADDED}"
 mkdir -p $SOLUTION_PATH # Ensure directory exists
 mkdir -p $EXAMPLE_PATH  # Ensure directory exists
 mkdir -p $RESOURCE_PATH # Ensure directory exists

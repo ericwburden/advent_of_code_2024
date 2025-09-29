@@ -13,7 +13,7 @@ pub type Input =
 pub type Output =
   Result(Int, String)
 
-pub const input_path = "answers/day07/input.txt"
+pub const input_path = "inputs/day07/input.txt"
 
 pub const example1_path = "test/day07/examples/example1.txt"
 
