@@ -1,7 +1,9 @@
 import common/grid2d
-import day12/day12.{type Input, type Output}
+import day12/day12.{
+  type Input, type LabelledRegion, type Output, find_labelled_regions,
+  input_path,
+}
 import day12/parse
-import day12/regions
 import gleam/int
 import gleam/io
 import gleam/list
@@ -37,24 +39,9 @@ fn sort_order(direction: Direction) -> Int {
   }
 }
 
-// fn directions_with_edge(
-//   plot_map: grid2d.Grid2D(UtfCodepoint),
-//   of_plot: #(grid2d.Index2D, UtfCodepoint),
-// ) -> List(Direction) {
-//   let #(plot_idx, plot_label) = of_plot
-//   list.fold([North, South, East, West], [], fn(acc, direction) {
-//     let neighbor_idx = grid2d.apply_offset(plot_idx, to_offset(direction))
-//     case grid2d.get(plot_map, neighbor_idx) {
-//       Error(_) -> [direction, ..acc]
-//       Ok(v) if v != plot_label -> [direction, ..acc]
-//       Ok(_) -> acc
-//     }
-//   })
-// }
-
 fn find_edges_of_region(
   plot_map: grid2d.Grid2D(UtfCodepoint),
-  region: regions.LabelledRegion,
+  region: LabelledRegion,
 ) -> List(Edge) {
   let #(label, indices) = region
   set.to_list(indices)
@@ -79,35 +66,30 @@ fn edge_compare(edge1: Edge, edge2: Edge) -> order.Order {
   let #(grid2d.Index2D(r1, c1), d1) = edge1
   let #(grid2d.Index2D(r2, c2), d2) = edge2
 
+  let direction_order = int.compare(sort_order(d1), sort_order(d2))
+  let row_order = int.compare(r1, r2)
+  let col_order = int.compare(c1, c2)
+
   // Sorting is by direction first, then either:
   // - row then column for North or South
   // - column then row for East or West
-  case d1 == d2 {
-    True ->
-      case d1 {
-        North | South ->
-          case int.compare(r1, r2) {
-            order.Eq -> int.compare(c1, c2)
-            other -> other
-          }
-        East | West ->
-          case int.compare(c1, c2) {
-            order.Eq -> int.compare(r1, r2)
-            other -> other
-          }
-      }
-    False -> int.compare(sort_order(d1), sort_order(d2))
-  }
+  order.break_tie(direction_order, case d1 {
+    North | South -> order.break_tie(row_order, col_order)
+    East | West -> order.break_tie(col_order, row_order)
+  })
 }
 
 fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
-  case edge1, edge2 {
-    #(grid2d.Index2D(r1, c1), d1), #(grid2d.Index2D(r2, c2), d2) if d1 == d2 ->
+  let #(grid2d.Index2D(r1, c1), d1) = edge1
+  let #(grid2d.Index2D(r2, c2), d2) = edge2
+
+  case d1 == d2 {
+    True ->
       case d1 {
         North | South -> r1 == r2 && int.absolute_value(c1 - c2) == 1
         East | West -> c1 == c2 && int.absolute_value(r1 - r2) == 1
       }
-    #(_, _), #(_, _) -> False
+    False -> False
   }
 }
 
@@ -128,24 +110,27 @@ fn count_sides(edges: List(Edge)) -> Int {
   }
 }
 
+fn calculate_price(
+  plot_map: grid2d.Grid2D(UtfCodepoint),
+  region: LabelledRegion,
+) -> Int {
+  let sides = plot_map |> find_edges_of_region(region) |> count_sides
+  let area = set.size(region.1)
+  sides * area
+}
+
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 
+  let price_fn = fn(region) { calculate_price(input, region) }
   let result =
-    regions.find_labelled_regions(input)
-    |> list.map(fn(region) {
-      let edges = find_edges_of_region(input, region)
-      let sides = count_sides(edges)
-      let area =
-        region.1
-        |> set.size
-      sides * area
-    })
+    find_labelled_regions(input)
+    |> list.map(price_fn)
     |> int.sum
 
   Ok(result)
 }
 
 pub fn main() -> Output {
-  day12.input_path |> parse.read_input |> solve |> io.debug
+  input_path |> parse.read_input |> solve |> io.debug
 }

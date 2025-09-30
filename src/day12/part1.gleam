@@ -1,7 +1,8 @@
 import common/grid2d
-import day12/day12.{type Input, type Output}
+import day12/day12.{
+  type Input, type Output, type Region, find_regions, input_path,
+}
 import day12/parse
-import day12/regions
 import gleam/dict
 import gleam/int
 import gleam/io
@@ -23,7 +24,7 @@ fn find_perimeters(plot_map: grid2d.Grid2D(UtfCodepoint)) -> Perimeters {
   })
 }
 
-fn calculate_region_price(region: regions.Region, perimeters: Perimeters) -> Int {
+fn calculate_region_price(region: Region, perimeters: Perimeters) -> Int {
   let area = set.size(region)
 
   let perimeter =
@@ -47,7 +48,7 @@ pub fn solve(input: Input) -> Output {
 
   let result =
     input
-    |> regions.find_regions
+    |> find_regions
     |> list.map(price_fn)
     |> int.sum
 
@@ -55,16 +56,5 @@ pub fn solve(input: Input) -> Output {
 }
 
 pub fn main() -> Output {
-  let read_input_result = parse.read_input(day12.input_path)
-  use input <- result.try(read_input_result)
-
-  let perimeters = find_perimeters(input)
-
-  input
-  |> regions.find_regions
-  |> list.map(fn(r) { calculate_region_price(r, perimeters) })
-  |> int.sum
-  |> io.debug
-
-  Ok(0)
+  input_path |> parse.read_input |> solve |> io.debug
 }
