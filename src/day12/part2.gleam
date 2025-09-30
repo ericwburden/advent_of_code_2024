@@ -1,14 +1,13 @@
 import common/grid2d
 import day12/day12.{type Input, type Output}
 import day12/parse
-import gleam/dict
+import day12/regions
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/order
 import gleam/result
 import gleam/set
-import gleam/string
 
 pub type Direction {
   North
@@ -55,10 +54,11 @@ fn sort_order(direction: Direction) -> Int {
 
 fn find_edges_of_region(
   plot_map: grid2d.Grid2D(UtfCodepoint),
-  region: #(UtfCodepoint, List(grid2d.Index2D)),
+  region: regions.LabelledRegion,
 ) -> List(Edge) {
   let #(label, indices) = region
-  list.fold(indices, [], fn(acc, idx) {
+  set.to_list(indices)
+  |> list.fold([], fn(acc, idx) {
     let plot_edge_directions =
       list.fold([North, South, East, West], [], fn(acc, direction) {
         let neighbor_idx = grid2d.apply_offset(idx, to_offset(direction))
@@ -107,7 +107,7 @@ fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
         North | South -> r1 == r2 && int.absolute_value(c1 - c2) == 1
         East | West -> c1 == c2 && int.absolute_value(r1 - r2) == 1
       }
-    #(_, d1), #(_, d2) -> False
+    #(_, _), #(_, _) -> False
   }
 }
 
@@ -128,76 +128,17 @@ fn count_sides(edges: List(Edge)) -> Int {
   }
 }
 
-fn build_region_containing(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-  start_at: grid2d.Index2D,
-) -> set.Set(grid2d.Index2D) {
-  build_region_containing_go(plot_map, [start_at], set.new())
-}
-
-fn build_region_containing_go(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-  stack: List(grid2d.Index2D),
-  plots_found: set.Set(grid2d.Index2D),
-) -> set.Set(grid2d.Index2D) {
-  case stack {
-    [] -> plots_found
-    [next_idx, ..rest] ->
-      case grid2d.get(plot_map, next_idx) {
-        Error(_) -> panic as "Unreachable branch!"
-        Ok(next_label) -> {
-          let next_plots_found = set.insert(plots_found, next_idx)
-          let match_fn = fn(v) { v == next_label }
-          let neighboring_unchecked_plots =
-            plot_map
-            |> grid2d.cardinal_neighbors_like(next_idx, match_fn)
-            |> list.filter(fn(i) { !set.contains(next_plots_found, i) })
-          let next_stack = list.append(neighboring_unchecked_plots, rest)
-          build_region_containing_go(plot_map, next_stack, next_plots_found)
-        }
-      }
-  }
-}
-
-fn find_regions(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-) -> List(#(UtfCodepoint, List(grid2d.Index2D))) {
-  let plots_to_visit = dict.to_list(plot_map)
-  let remaining = plot_map |> dict.keys |> set.from_list
-  find_regions_go(plot_map, plots_to_visit, remaining, [])
-  |> list.reverse
-}
-
-fn find_regions_go(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-  plots_to_visit: List(#(grid2d.Index2D, UtfCodepoint)),
-  remaining: set.Set(grid2d.Index2D),
-  regions: List(#(UtfCodepoint, List(grid2d.Index2D))),
-) -> List(#(UtfCodepoint, List(grid2d.Index2D))) {
-  case plots_to_visit {
-    [] -> regions
-    [#(next_idx, next_label), ..rest] ->
-      case set.contains(remaining, next_idx) {
-        False -> find_regions_go(plot_map, rest, remaining, regions)
-        True -> {
-          let region_set = build_region_containing(plot_map, next_idx)
-          let next_remaining = set.difference(remaining, region_set)
-          let region = #(next_label, set.to_list(region_set))
-          find_regions_go(plot_map, rest, next_remaining, [region, ..regions])
-        }
-      }
-  }
-}
-
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 
   let result =
-    find_regions(input)
+    regions.find_labelled_regions(input)
     |> list.map(fn(region) {
       let edges = find_edges_of_region(input, region)
       let sides = count_sides(edges)
-      let area = list.length(region.1)
+      let area =
+        region.1
+        |> set.size
       sides * area
     })
     |> int.sum

@@ -6,7 +6,7 @@ import gleam/io
 
 pub const part1_expected = 1_344_578
 
-pub const part2_expected = 0
+pub const part2_expected = 814_302
 
 pub fn main() {
   let input = parse.read_input(day12.input_path)
