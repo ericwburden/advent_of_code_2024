@@ -1,10 +1,12 @@
+import common/grid2d
+
 pub type Input =
-  Nil
+  Result(grid2d.Grid2D(UtfCodepoint), String)
 
 pub type Output =
-  Nil
+  Result(Int, String)
 
-pub const input_path = "answers/day12/input.txt"
+pub const input_path = "inputs/day12/input.txt"
 
 pub const example1_path = "test/day12/examples/example1.txt"
 

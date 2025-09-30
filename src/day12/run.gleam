@@ -4,12 +4,12 @@ import day12/part1
 import day12/part2
 import gleam/io
 
-pub const part1_expected = 0
+pub const part1_expected = 1_344_578
 
 pub const part2_expected = 0
 
 pub fn main() {
-  let input = parse.read_input(day01.input_path)
+  let input = parse.read_input(day12.input_path)
 
   case part1.solve(input) {
     Ok(result) ->
