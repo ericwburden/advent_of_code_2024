@@ -10,9 +10,15 @@ import gleam/list
 import gleam/result
 import gleam/set
 
+/// For each plot, track how many edges are exposed to the outside world.
+/// The perimeter of any plot is the number of sides that touch either 
+/// a different kind of plot or the edge of the grid.
 pub type Perimeters =
   grid2d.Grid2D(Int)
 
+/// Count the exposed edges for every plot in the field so we can later price
+/// the whole region. Provide the number of exposed sides in a convenient
+/// lookup by index.
 fn find_perimeters(plot_map: grid2d.Grid2D(UtfCodepoint)) -> Perimeters {
   plot_map
   |> dict.fold(dict.new(), fn(acc, idx, label) {
@@ -24,9 +30,13 @@ fn find_perimeters(plot_map: grid2d.Grid2D(UtfCodepoint)) -> Perimeters {
   })
 }
 
+/// The price is the classic "area × perimeter" metric from the puzzle.
 fn calculate_region_price(region: Region, perimeters: Perimeters) -> Int {
+  // Area is just the number of plots in the region...
   let area = set.size(region)
 
+  // ...and perimeter is the sum of the perimeters of all the plots in 
+  // the region.
   let perimeter =
     region
     |> set.to_list
@@ -40,6 +50,9 @@ fn calculate_region_price(region: Region, perimeters: Perimeters) -> Int {
   area * perimeter
 }
 
+/// Build a perimeter map once, flood-fill each region, price the region by
+/// `area × perimeter`, then add every region's price together for the final
+/// answer.
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 

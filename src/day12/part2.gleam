@@ -11,6 +11,7 @@ import gleam/order
 import gleam/result
 import gleam/set
 
+/// Directions used to walk the border when counting sides.
 pub type Direction {
   North
   East
@@ -18,9 +19,11 @@ pub type Direction {
   West
 }
 
+/// Identify an edge by the plot it belongs to and which side is exposed.
 pub type Edge =
   #(grid2d.Index2D, Direction)
 
+/// Translate a facing into the offset required to inspect the neighbor.
 fn to_offset(direction: Direction) -> grid2d.Offset2D {
   case direction {
     East -> grid2d.Offset2D(0, 1)
@@ -30,6 +33,7 @@ fn to_offset(direction: Direction) -> grid2d.Offset2D {
   }
 }
 
+/// Provide a stable sort key so edges are grouped by direction first.
 fn sort_order(direction: Direction) -> Int {
   case direction {
     North -> 1
@@ -39,6 +43,8 @@ fn sort_order(direction: Direction) -> Int {
   }
 }
 
+/// Collect every exposed edge for the region by checking the four neighbors
+/// of each plot and keeping the ones that lead outside the region.
 fn find_edges_of_region(
   plot_map: grid2d.Grid2D(UtfCodepoint),
   region: LabelledRegion,
@@ -62,6 +68,8 @@ fn find_edges_of_region(
   })
 }
 
+/// Sort edges so contiguous ones sit next to each other for the fold that
+/// counts distinct sides.
 fn edge_compare(edge1: Edge, edge2: Edge) -> order.Order {
   let #(grid2d.Index2D(r1, c1), d1) = edge1
   let #(grid2d.Index2D(r2, c2), d2) = edge2
@@ -79,6 +87,7 @@ fn edge_compare(edge1: Edge, edge2: Edge) -> order.Order {
   })
 }
 
+/// Determine if two edges are part of the same straight side.
 fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
   let #(grid2d.Index2D(r1, c1), d1) = edge1
   let #(grid2d.Index2D(r2, c2), d2) = edge2
@@ -93,6 +102,8 @@ fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
   }
 }
 
+/// Once sorted, walk the edges and bump the count whenever two neighbors
+/// are not part of the same continuous side.
 fn count_sides(edges: List(Edge)) -> Int {
   case edges {
     [] -> 0
@@ -119,6 +130,9 @@ fn calculate_price(
   sides * area
 }
 
+/// For each region, collect its exposed edges, group them into distinct
+/// sides, multiply by the region's area, then sum those prices across the
+/// map for the final total.
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 
