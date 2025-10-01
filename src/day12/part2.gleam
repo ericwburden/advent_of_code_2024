@@ -45,26 +45,24 @@ fn sort_order(direction: Direction) -> Int {
 /// The difference between an Edge and a perimeter count is that the Edge keeps
 /// track of the specific side of the plot that should be separated from
 /// another region. This function returns a list of the [Edge]s for the region.
-fn find_edges_of_region(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-  region: Region,
-) -> List(Edge) {
-  let label = region.label
+fn find_edges_of_region(region: Region) -> List(Edge) {
+  // Inner helper to identify which directions from the plot at `idx` represent
+  // a border with either another region or the edge of the map.
+  let directions_with_edge = fn(idx) {
+    list.fold([North, South, East, West], [], fn(acc, direction) {
+      let neighbor_idx = grid2d.apply_offset(idx, to_offset(direction))
+      case set.contains(region.plots, neighbor_idx) {
+        True -> acc
+        False -> [direction, ..acc]
+      }
+    })
+  }
+
   set.to_list(region.plots)
   |> list.fold([], fn(acc, idx) {
-    let plot_edge_directions =
-      list.fold([North, South, East, West], [], fn(acc, direction) {
-        let neighbor_idx = grid2d.apply_offset(idx, to_offset(direction))
-        case grid2d.get(plot_map, neighbor_idx) {
-          Error(_) -> [direction, ..acc]
-          Ok(v) if v != label -> [direction, ..acc]
-          Ok(_) -> acc
-        }
-      })
-
-    let indexed_edges =
-      list.map(plot_edge_directions, fn(edge) { #(idx, edge) })
-    list.append(indexed_edges, acc)
+    directions_with_edge(idx)
+    |> list.map(fn(edge) { #(idx, edge) })
+    |> list.append(acc)
   })
 }
 
@@ -111,27 +109,33 @@ fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
 
 /// Once sorted, walk the edges and bump the count whenever two neighbors
 /// are not part of the same continuous side.
-fn count_sides(edges: List(Edge)) -> Int {
-  case edges {
+fn count_sides_of_region(region: Region) -> Int {
+  // Inner helper to increase the accumulator if a corner is encountered
+  // when tracing a set of edges.
+  let increment_if_corner = fn(acc, edge_pair) {
+    let #(edge1, edge2) = edge_pair
+    case is_contiguous(edge1, edge2) {
+      False -> acc + 1
+      True -> acc
+    }
+  }
+
+  // If there are any edges in the list of edges, count the number of sides
+  // by identifying where each side ends.
+  case find_edges_of_region(region) {
     [] -> 0
-    _ ->
+    edges ->
       edges
       |> list.sort(edge_compare)
       |> list.window_by_2
-      |> list.fold(1, fn(acc, edge_pair) {
-        let #(edge1, edge2) = edge_pair
-        case is_contiguous(edge1, edge2) {
-          False -> acc + 1
-          True -> acc
-        }
-      })
+      |> list.fold(1, increment_if_corner)
   }
 }
 
 /// Calculate the price of a region as the number of sides of the region times
 /// the area of the region.
-fn calculate_price(plot_map: grid2d.Grid2D(UtfCodepoint), region: Region) -> Int {
-  let sides = plot_map |> find_edges_of_region(region) |> count_sides
+fn calculate_price(region: Region) -> Int {
+  let sides = count_sides_of_region(region)
   let area = set.size(region.plots)
   sides * area
 }
@@ -142,12 +146,10 @@ fn calculate_price(plot_map: grid2d.Grid2D(UtfCodepoint), region: Region) -> Int
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 
-  let price_fn = fn(region) { calculate_price(input, region) }
-
   let result =
     input
     |> find_regions
-    |> list.map(price_fn)
+    |> list.map(calculate_price)
     |> int.sum
 
   Ok(result)

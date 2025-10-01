@@ -12,20 +12,26 @@ import gleam/set
 /// Count the exposed edges for every plot in the region and sum them to get
 /// the total perimeter.
 fn calculate_region_perimeter(region: Region) -> Int {
-  region.plots
-  |> set.to_list
-  |> list.fold(0, fn(acc, idx) {
-    let open_sides =
-      grid2d.cardinal_offsets
-      |> list.fold(0, fn(side_acc, offset) {
-        let neighbor = grid2d.apply_offset(idx, offset)
-        case set.contains(region.plots, neighbor) {
-          True -> side_acc
-          False -> side_acc + 1
-        }
-      })
-    acc + open_sides
-  })
+  // Inner helper to identify whether a neighbor at a particular offset
+  // is part of the same region as the plot at `idx`.
+  let side_exposed = fn(idx, offset) {
+    let neighbor = grid2d.apply_offset(idx, offset)
+    set.contains(region.plots, neighbor)
+  }
+
+  // Inner helper to count the number of neighbors outside the region for 
+  // a plot at a given `idx`.
+  let count_exposed_sides = fn(idx) {
+    list.fold(grid2d.cardinal_offsets, 0, fn(acc, offset) {
+      case side_exposed(idx, offset) {
+        True -> acc
+        False -> acc + 1
+      }
+    })
+  }
+
+  // For each plot in the region, sum the number of exposed sides
+  region.plots |> set.to_list |> list.map(count_exposed_sides) |> int.sum
 }
 
 /// The price is the classic "area × perimeter" metric from the puzzle.

@@ -53,38 +53,24 @@ fn build_region_go(
     [] -> Ok(Region(label: label, plots: plots_found))
 
     // Given an index still in the stack of plot indices to check...
-    [next_idx, ..rest] ->
-      // Grab its label from the `plot_map`
-      case grid2d.get(plot_map, next_idx) {
-        // It should always have one, so we'll leave this panic in to alert us
-        // in case we've made a bad assumption.
-        Error(_) -> Error("Missing plot label for region!")
+    [next_idx, ..rest] -> {
+      // Add the current index to the set of plots already visited
+      let next_plots_found = set.insert(plots_found, next_idx)
 
-        // This branch should always execute, giving us the label associated
-        // with `next_idx`.
-        Ok(next_label) ->
-          case next_label == label {
-            False -> build_region_go(plot_map, rest, plots_found, label)
+      // Only continue through plots that match the starting label so we
+      // stay inside the current region. We also drop any plots that we've
+      // checked already.
+      let match_fn = fn(v) { v == label }
+      let neighboring_unchecked_plots =
+        plot_map
+        |> grid2d.cardinal_neighbors_like(next_idx, match_fn)
+        |> list.filter(fn(i) { !set.contains(next_plots_found, i) })
 
-            // Add the plot we're checking to the set of found plots.
-            True -> {
-              let next_plots_found = set.insert(plots_found, next_idx)
-
-              // Only continue through plots that match the starting label so we
-              // stay inside the current region. We also drop any plots that we've
-              // checked already.
-              let match_fn = fn(v) { v == label }
-              let neighboring_unchecked_plots =
-                plot_map
-                |> grid2d.cardinal_neighbors_like(next_idx, match_fn)
-                |> list.filter(fn(i) { !set.contains(next_plots_found, i) })
-
-              // Add the unchecked plots to the stack and keep recursing.
-              let next_stack = list.append(neighboring_unchecked_plots, rest)
-              build_region_go(plot_map, next_stack, next_plots_found, label)
-            }
-          }
-      }
+      // Add the unchecked plots with the same label to the stack and keep 
+      // recursing.
+      let next_stack = list.append(neighboring_unchecked_plots, rest)
+      build_region_go(plot_map, next_stack, next_plots_found, label)
+    }
   }
 }
 
@@ -98,7 +84,6 @@ pub fn find_regions(plot_map: grid2d.Grid2D(UtfCodepoint)) -> List(Region) {
   let remaining = set.from_list(plots_to_visit)
 
   find_regions_go(plot_map, plots_to_visit, remaining, [])
-  |> list.reverse
 }
 
 /// Recursive implementation of `find_regions`.
