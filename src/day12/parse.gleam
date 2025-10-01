@@ -36,5 +36,5 @@ pub fn read_input(input_path) -> Input {
 }
 
 pub fn main() {
-  day12.example1_path |> read_input |> io.debug
+  day12.example1_path |> read_input |> echo
 }

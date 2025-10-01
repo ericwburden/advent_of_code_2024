@@ -1,8 +1,8 @@
+import common/runner
 import day07/day07
 import day07/parse
 import day07/part1
 import day07/part2
-import gleam/io
 
 pub const part1_expected = 2_664_460_013_123
 
@@ -10,22 +10,8 @@ pub const part2_expected = 426_214_131_924_213
 
 pub fn main() {
   let input = parse.read_input(day07.input_path)
-
-  case part1.solve(input) {
-    Ok(result) ->
-      case result == part1_expected {
-        True -> io.println("✅ Passed Day 07, Part 1")
-        False -> panic as "🛑 Failed Day 07, Part 1"
-      }
-    Error(s) -> panic as s
-  }
-
-  case part2.solve(input) {
-    Ok(result) ->
-      case result == part2_expected {
-        True -> io.println("✅ Passed Day 07, Part 2")
-        False -> panic as "🛑 Failed Day 07, Part 2"
-      }
-    Error(s) -> panic as s
-  }
+  runner.run_day(7, input, [
+    #("Part 1", part1_expected, part1.solve),
+    #("Part 2", part2_expected, part2.solve),
+  ])
 }

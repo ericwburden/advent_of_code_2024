@@ -101,5 +101,5 @@ pub fn solve(input: Input) -> Output {
 }
 
 pub fn main() -> Output {
-  day13.input_path |> parse.read_input |> solve |> io.debug
+  day13.input_path |> parse.read_input |> solve |> echo
 }

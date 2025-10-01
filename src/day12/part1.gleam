@@ -61,5 +61,5 @@ pub fn solve(input: Input) -> Output {
 }
 
 pub fn main() -> Output {
-  input_path |> parse.read_input |> solve |> io.debug
+  input_path |> parse.read_input |> solve |> echo
 }

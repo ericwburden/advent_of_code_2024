@@ -67,5 +67,5 @@ pub fn main() -> Output {
   day07.input_path
   |> parse.read_input
   |> solve
-  |> io.debug
+  |> echo
 }

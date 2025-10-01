@@ -170,5 +170,5 @@ pub fn main() -> Output {
   day09.input_path
   |> parse.read_input
   |> solve
-  |> io.debug
+  |> echo
 }

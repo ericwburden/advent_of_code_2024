@@ -70,5 +70,5 @@ pub fn main() -> Output {
   day08.input_path
   |> parse.read_input
   |> solve
-  |> io.debug
+  |> echo
 }
