@@ -43,8 +43,9 @@ fn sort_order(direction: Direction) -> Int {
   }
 }
 
-/// Collect every exposed edge for the region by checking the four neighbors
-/// of each plot and keeping the ones that lead outside the region.
+/// The difference between an Edge and a perimeter count is that the Edge keeps
+/// track of the specific side of the plot that should be separated from
+/// another region. This function returns a list of the [Edge]s for the region.
 fn find_edges_of_region(
   plot_map: grid2d.Grid2D(UtfCodepoint),
   region: LabelledRegion,
@@ -68,8 +69,10 @@ fn find_edges_of_region(
   })
 }
 
-/// Sort edges so contiguous ones sit next to each other for the fold that
-/// counts distinct sides.
+/// Comparator to use when sorting [Edge]s. Edges on different faces of a 
+/// plot (by cardinal direction) are sorted into groups. Sorting is then
+/// row -> column for North- and South-facing edges, column -> row for 
+/// East- and West-facing edges.
 fn edge_compare(edge1: Edge, edge2: Edge) -> order.Order {
   let #(grid2d.Index2D(r1, c1), d1) = edge1
   let #(grid2d.Index2D(r2, c2), d2) = edge2
@@ -95,7 +98,12 @@ fn is_contiguous(edge1: Edge, edge2: Edge) -> Bool {
   case d1 == d2 {
     True ->
       case d1 {
+        // North- and South-facing edges are contiguous if they are on the same
+        // row and are in adjacent columns.
         North | South -> r1 == r2 && int.absolute_value(c1 - c2) == 1
+
+        // East- and West-facing edges are contiguous if they are on the same
+        // column and are in adjacent rows.
         East | West -> c1 == c2 && int.absolute_value(r1 - r2) == 1
       }
     False -> False
@@ -121,6 +129,8 @@ fn count_sides(edges: List(Edge)) -> Int {
   }
 }
 
+/// Calculate the price of a region as the number of sides of the region times
+/// the area of the region.
 fn calculate_price(
   plot_map: grid2d.Grid2D(UtfCodepoint),
   region: LabelledRegion,
