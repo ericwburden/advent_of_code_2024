@@ -1,7 +1,6 @@
 import common/grid2d
 import day12/day12.{
-  type Input, type LabelledRegion, type Output, find_labelled_regions,
-  input_path,
+  type Input, type Output, type Region, find_regions, input_path,
 }
 import day12/parse
 import gleam/int
@@ -48,10 +47,10 @@ fn sort_order(direction: Direction) -> Int {
 /// another region. This function returns a list of the [Edge]s for the region.
 fn find_edges_of_region(
   plot_map: grid2d.Grid2D(UtfCodepoint),
-  region: LabelledRegion,
+  region: Region,
 ) -> List(Edge) {
-  let #(label, indices) = region
-  set.to_list(indices)
+  let label = region.label
+  set.to_list(region.plots)
   |> list.fold([], fn(acc, idx) {
     let plot_edge_directions =
       list.fold([North, South, East, West], [], fn(acc, direction) {
@@ -131,12 +130,9 @@ fn count_sides(edges: List(Edge)) -> Int {
 
 /// Calculate the price of a region as the number of sides of the region times
 /// the area of the region.
-fn calculate_price(
-  plot_map: grid2d.Grid2D(UtfCodepoint),
-  region: LabelledRegion,
-) -> Int {
+fn calculate_price(plot_map: grid2d.Grid2D(UtfCodepoint), region: Region) -> Int {
   let sides = plot_map |> find_edges_of_region(region) |> count_sides
-  let area = set.size(region.1)
+  let area = set.size(region.plots)
   sides * area
 }
 
@@ -147,8 +143,10 @@ pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
 
   let price_fn = fn(region) { calculate_price(input, region) }
+
   let result =
-    find_labelled_regions(input)
+    input
+    |> find_regions
     |> list.map(price_fn)
     |> int.sum
 

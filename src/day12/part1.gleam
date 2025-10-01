@@ -3,66 +3,52 @@ import day12/day12.{
   type Input, type Output, type Region, find_regions, input_path,
 }
 import day12/parse
-import gleam/dict
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/result
 import gleam/set
 
-/// For each plot, track how many edges are exposed to the outside world.
-/// The perimeter of any plot is the number of sides that touch either 
-/// a different kind of plot or the edge of the grid.
-pub type Perimeters =
-  grid2d.Grid2D(Int)
-
-/// Count the exposed edges for every plot in the field so we can later price
-/// the whole region. Provide the number of exposed sides in a convenient
-/// lookup by index.
-fn find_perimeters(plot_map: grid2d.Grid2D(UtfCodepoint)) -> Perimeters {
-  plot_map
-  |> dict.fold(dict.new(), fn(acc, idx, label) {
-    let match_fn = fn(v) { v == label }
-    let matching_neighbors =
-      grid2d.cardinal_neighbors_like(plot_map, idx, match_fn)
-    let perimeter = 4 - list.length(matching_neighbors)
-    dict.insert(acc, idx, perimeter)
+/// Count the exposed edges for every plot in the region and sum them to get
+/// the total perimeter.
+fn calculate_region_perimeter(region: Region) -> Int {
+  region.plots
+  |> set.to_list
+  |> list.fold(0, fn(acc, idx) {
+    let open_sides =
+      grid2d.cardinal_offsets
+      |> list.fold(0, fn(side_acc, offset) {
+        let neighbor = grid2d.apply_offset(idx, offset)
+        case set.contains(region.plots, neighbor) {
+          True -> side_acc
+          False -> side_acc + 1
+        }
+      })
+    acc + open_sides
   })
 }
 
 /// The price is the classic "area × perimeter" metric from the puzzle.
-fn calculate_region_price(region: Region, perimeters: Perimeters) -> Int {
+fn calculate_region_price(region: Region) -> Int {
   // Area is just the number of plots in the region...
-  let area = set.size(region)
+  let area = set.size(region.plots)
 
-  // ...and perimeter is the sum of the perimeters of all the plots in 
-  // the region.
-  let perimeter =
-    region
-    |> set.to_list
-    |> list.fold(0, fn(acc, idx) {
-      case grid2d.get(perimeters, idx) {
-        Ok(value) -> acc + value
-        Error(_) -> panic as "Missing perimeter for index!"
-      }
-    })
+  // ...and perimeter is the number of exposed edges across the region.
+  let perimeter = calculate_region_perimeter(region)
 
   area * perimeter
 }
 
-/// Build a perimeter map once, flood-fill each region, price the region by
-/// `area × perimeter`, then add every region's price together for the final
-/// answer.
+/// Flood-fill each region, compute its area and perimeter on the fly, price
+/// it by `area × perimeter`, then add every region's price together for the
+/// final answer.
 pub fn solve(input: Input) -> Output {
   use input <- result.try(input)
-
-  let perimeters = find_perimeters(input)
-  let price_fn = fn(region) { calculate_region_price(region, perimeters) }
 
   let result =
     input
     |> find_regions
-    |> list.map(price_fn)
+    |> list.map(calculate_region_price)
     |> int.sum
 
   Ok(result)
