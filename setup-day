@@ -70,6 +70,10 @@ pub fn read_input(input_path) -> Input {
   let assert Ok(contents) = simplifile.read(input_path)
   string.split(contents, on: "\n")
 }
+
+pub fn main() {
+  ${DAYSTR}.example1_path |> read_input |> echo
+}
 EOL
 
 cat >"${SOLUTION_PATH}/part1.gleam" <<EOL
@@ -78,6 +82,10 @@ import ${DAYSTR}/${DAYSTR}.{type Input, type Output}
 pub fn solve(input: Input) -> Output {
   todo
 }
+
+pub fn main() -> Output {
+  ${DAYSTR}.example1_path |> parse.read_input |> solve |> echo
+}
 EOL
 
 cat >"${SOLUTION_PATH}/part2.gleam" <<EOL
@@ -85,6 +93,10 @@ import ${DAYSTR}/${DAYSTR}.{type Input, type Output}
 
 pub fn solve(input: Input) -> Output {
   todo
+}
+
+pub fn main() -> Output {
+  ${DAYSTR}.example1_path |> parse.read_input |> solve |> echo
 }
 EOL
 
@@ -115,22 +127,22 @@ import ${DAYSTR}/part1
 import ${DAYSTR}/part2
 import gleeunit/should
 
-const example1_answer = Ok(0)
+const part1_example1_answer = Ok(0)
 
-const example2_answer = Ok(0)
+const part2_example1_answer = Ok(0)
 
-pub fn example1_test() {
+pub fn part1_example1_test() {
   ${DAYSTR}.example1_path
   |> parse.read_input
   |> part1.solve
-  |> should.equal(example1_answer)
+  |> should.equal(part1_example1_answer)
 }
 
-// pub fn example2_test() {
-//   ${DAYSTR}.example2_path
+// pub fn part2_example1_test() {
+//   ${DAYSTR}.example1_path
 //   |> parse.read_input
 //   |> part2.solve
-//   |> should.equal(example2_answer)
+//   |> should.equal(part2_example1_answer)
 // }
 EOL
 
