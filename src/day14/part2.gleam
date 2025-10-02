@@ -98,20 +98,24 @@ pub fn find_minimal_tree_times(floor: Floor) -> List(Int) {
       // The absurdly large number of seconds to check for
       let period = floor.width * floor.height
 
-      let #(found_times, _) =
+      // For every second we run the simulation forward, we check for the
+      // presence of the minimal tree pattern. If we find it, we add that
+      // number of seconds to our `found` list. Regardless, we move all
+      // the robots and continue checking, because the minimal tree might
+      // show up multiple times in 'partial' Christmas tree patterns, not
+      // just the full pattern.
+      let #(found, _) =
         list.fold(list.range(0, period - 1), #([], floor), fn(acc, second) {
-          let #(found_times, current_floor) = acc
-          let found_times = case
-            any_minimal_tree_pattern(current_floor.robots)
-          {
-            False -> found_times
-            True -> [second, ..found_times]
+          let #(found, current_floor) = acc
+          let found = case any_minimal_tree_pattern(current_floor.robots) {
+            False -> found
+            True -> [second, ..found]
           }
           let next_floor = move_all_robots(current_floor)
-          #(found_times, next_floor)
+          #(found, next_floor)
         })
 
-      found_times
+      found
     }
   }
 }
@@ -150,18 +154,22 @@ pub fn find_lowest_safety_second(floor: Floor) -> Int {
   }
 }
 
+/// Calculates which second produces the tree for Part 2. We'll use the
+/// search for minimal safety factor as the actual solution, because that seems
+/// like what was intended, but the pattern search also works.
 pub fn solve(input: Input, floor_width: Int, floor_height: Int) -> Output {
   use robots <- result.try(input)
 
   let floor = Floor(floor_width, floor_height, robots)
   let target_time = find_lowest_safety_second(floor)
 
+  // This works too, but it's about 4-5x slower.
+  // let assert [target_time] = find_minimal_tree_times(floor)
+
   Ok(target_time)
 }
 
-// I'm going to leave this here. This main function can be used to confirm
-// that, indeed, finding the lowest safety value coincides with finding a
-// tree pattern in the robots.
+/// Sanity check
 pub fn main() {
   let assert Ok(robots) = day14.input_path |> parse.read_input
   let floor = Floor(101, 103, robots)
@@ -170,8 +178,8 @@ pub fn main() {
   assert target_time == tree_time
 }
 
-/// Because I needed to print the dang floor pattern and make sure I was
-/// getting a tree! Also, I wanted to see the tree.
+/// Turns the robot list into a cosy ASCII art grid so you can admire the
+/// resulting forest (or chaos) in your terminal.
 pub fn render_robot_grid(width: Int, height: Int, robots: List(Robot)) -> String {
   case width <= 0 || height <= 0 {
     True -> ""
@@ -181,23 +189,26 @@ pub fn render_robot_grid(width: Int, height: Int, robots: List(Robot)) -> String
         |> list.map(fn(robot) { robot.position })
         |> set.from_list
 
-      list.range(0, height - 1)
-      |> list.map(fn(row) {
-        list.range(0, width - 1)
-        |> list.map(fn(col) {
-          let position = grid2d.Index2D(row, col)
-          case set.contains(robot_positions, position) {
-            True -> "#"
-            False -> "."
-          }
+      let rows =
+        list.map(list.range(0, height - 1), fn(row) {
+          let row =
+            list.map(list.range(0, width - 1), fn(col) {
+              let position = grid2d.Index2D(row, col)
+              case set.contains(robot_positions, position) {
+                True -> "#"
+                False -> "."
+              }
+            })
+
+          string.join(row, "")
         })
-        |> string.join("")
-      })
-      |> string.join("\n")
+
+      string.join(rows, "\n")
     }
   }
 }
 
+/// Convenience wrapper that prints the rendered grid in one call.
 pub fn print_robot_grid(width: Int, height: Int, robots: List(Robot)) -> Nil {
   render_robot_grid(width, height, robots) |> io.println
 }
