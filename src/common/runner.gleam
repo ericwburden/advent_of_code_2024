@@ -29,11 +29,10 @@ pub fn run_day(
   parts: List(#(String, Int, fn(input) -> Result(Int, String))),
 ) {
   io.println("🗓️  Day " <> int.to_string(day))
-  list.each(parts, fn(part) { run_part(day, input, part) })
+  list.each(parts, fn(part) { run_part(input, part) })
 }
 
 fn run_part(
-  day: Int,
   input: input,
   part: #(String, Int, fn(input) -> Result(Int, String)),
 ) {
