@@ -28,8 +28,8 @@ pub fn run_day(
   input: input,
   parts: List(#(String, Int, fn(input) -> Result(Int, String))),
 ) {
-  parts
-  |> list.each(fn(part) { run_part(day, input, part) })
+  io.println("🗓️  Day " <> int.to_string(day))
+  list.each(parts, fn(part) { run_part(day, input, part) })
 }
 
 fn run_part(
@@ -47,16 +47,20 @@ fn run_part(
       case result == expected {
         True ->
           io.println(
-            "✅ Passed Day "
-            <> int.to_string(day)
-            <> ", "
+            "  ✅ \u{001b}[1;32m"
             <> label
-            <> " in "
+            <> " passed in "
             <> int.to_string(duration)
-            <> "ms",
+            <> "ms\u{001b}[0m",
           )
         False ->
-          panic as { "🛑 Failed Day " <> int.to_string(day) <> ", " <> label }
+          io.println(
+            "  🛑 \u{001b}[1;31m"
+            <> label
+            <> " failed in "
+            <> int.to_string(duration)
+            <> "ms\u{001b}[0m",
+          )
       }
     }
     Error(message) -> panic as message
