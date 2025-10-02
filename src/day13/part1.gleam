@@ -3,7 +3,6 @@ import day13/day13.{
 }
 import day13/parse
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 

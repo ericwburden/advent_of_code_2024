@@ -1,7 +1,6 @@
 import common/grid2d.{type Index2D, Index2D}
 import day12/day12.{type Input}
 import gleam/dict
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string

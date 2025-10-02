@@ -1,6 +1,5 @@
 import day07/day07.{type EquationParts, type Input, type Output, EquationParts}
 import day07/parse
-import gleam/io
 import gleam/list
 import gleam/result
 

@@ -1,6 +1,5 @@
 import day13/day13
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp

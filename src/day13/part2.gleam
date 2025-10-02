@@ -2,7 +2,6 @@ import day13/day13.{type Input, type Machine, type Output, Machine, Prize}
 import day13/parse
 import day13/part1.{calculate_token_cost, solve_machine}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 

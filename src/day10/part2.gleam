@@ -3,7 +3,6 @@ import day10/day10.{type Input, type Output}
 import day10/parse
 import day10/part1.{find_trailheads, score_trailhead}
 import gleam/int
-import gleam/io
 import gleam/list
 
 /// Part 2 is actually simpler. Here, we count every peak we encounter every

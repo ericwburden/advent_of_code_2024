@@ -1,6 +1,5 @@
 import day09/day09.{type Input, type Output}
 import day09/parse
-import gleam/io
 import gleam/list
 import gleam/result
 

@@ -3,7 +3,6 @@ import day11/day11.{type Input, type Output}
 import day11/parse
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option
 import gleam/result

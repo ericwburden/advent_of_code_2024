@@ -4,7 +4,6 @@ import day12/day12.{
 }
 import day12/parse
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/set

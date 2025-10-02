@@ -3,7 +3,6 @@ import day11/parse
 import day11/part1.{add_to_count, blink_n}
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 

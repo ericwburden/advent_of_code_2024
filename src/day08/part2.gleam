@@ -2,7 +2,6 @@ import common/types.{type Index2D}
 import day08/day08.{type Antenna, type Bounds, type Input, type Output, Antenna}
 import day08/parse
 import day08/part1
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/set

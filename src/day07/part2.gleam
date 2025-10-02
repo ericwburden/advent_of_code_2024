@@ -2,7 +2,6 @@ import common/fns
 import day07/day07.{type Input, type Output}
 import day07/parse
 import day07/part1.{can_solve_equation}
-import gleam/io
 import gleam/list
 import gleam/result
 

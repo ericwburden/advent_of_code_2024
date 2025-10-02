@@ -2,7 +2,6 @@ import day06/day06.{type Guard, type Input, type Output, type PatrolMap}
 import day06/parse
 import day06/part1
 import gleam/dict
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/set.{type Set}
