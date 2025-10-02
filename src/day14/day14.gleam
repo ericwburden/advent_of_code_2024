@@ -1,8 +1,14 @@
+import common/grid2d
+
+pub type Robot {
+  Robot(position: grid2d.Index2D, velocity: grid2d.Offset2D)
+}
+
 pub type Input =
-  Nil
+  Result(List(Robot), String)
 
 pub type Output =
-  Nil
+  Result(Int, String)
 
 pub const input_path = "inputs/day14/input.txt"
 

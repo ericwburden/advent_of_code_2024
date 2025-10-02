@@ -52,7 +52,7 @@ pub type Input =
   Nil
 
 pub type Output =
-  Nil
+  Result(Int, String)
 
 pub const input_path = "inputs/${DAYSTR}/input.txt"
 
@@ -93,7 +93,7 @@ import ${DAYSTR}/${DAYSTR}
 import ${DAYSTR}/parse
 import ${DAYSTR}/part1
 import ${DAYSTR}/part2
-import gleam/io
+import common/runner
 
 pub const part1_expected = 0
 
@@ -115,9 +115,9 @@ import ${DAYSTR}/part1
 import ${DAYSTR}/part2
 import gleeunit/should
 
-const example1_answer = Nil
+const example1_answer = Ok(0)
 
-const example2_answer = Nil
+const example2_answer = Ok(0)
 
 pub fn example1_test() {
   ${DAYSTR}.example1_path
