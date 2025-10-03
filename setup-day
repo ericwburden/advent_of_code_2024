@@ -78,6 +78,8 @@ EOL
 
 cat >"${SOLUTION_PATH}/part1.gleam" <<EOL
 import ${DAYSTR}/${DAYSTR}.{type Input, type Output}
+import ${DAYSTR}/parse
+
 
 pub fn solve(input: Input) -> Output {
   todo
@@ -90,6 +92,8 @@ EOL
 
 cat >"${SOLUTION_PATH}/part2.gleam" <<EOL
 import ${DAYSTR}/${DAYSTR}.{type Input, type Output}
+import ${DAYSTR}/parse
+
 
 pub fn solve(input: Input) -> Output {
   todo
