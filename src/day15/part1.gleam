@@ -96,7 +96,7 @@ fn push_boxes(
 }
 
 /// Calculates the GPS coordinate for a given index.
-fn gps_coordinate(location: grid2d.Index2D) -> Int {
+pub fn gps_coordinate(location: grid2d.Index2D) -> Int {
   let grid2d.Index2D(row, col) = location
   { row * 100 } + col
 }
