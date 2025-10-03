@@ -36,6 +36,7 @@ pub const example1_path = "test/day15/examples/example1.txt"
 
 pub const example2_path = "test/day15/examples/example2.txt"
 
+/// Convert tiles from the part 1 grid to their character representations
 pub fn tile_to_char(tile: Tile) -> String {
   case tile {
     Robot -> "@"
@@ -44,6 +45,7 @@ pub fn tile_to_char(tile: Tile) -> String {
   }
 }
 
+/// Convert tiles from the part 2 grid to their character representations
 pub fn double_tile_to_char(tile: DoubleTile) -> String {
   case tile {
     DoubleRobot -> "@"
@@ -53,29 +55,28 @@ pub fn double_tile_to_char(tile: DoubleTile) -> String {
   }
 }
 
-fn grid_bounds(grid: grid2d.Grid2D(a)) -> #(Int, Int, Int, Int) {
-  let cells = dict.to_list(grid)
-
-  list.fold(cells, #(0, 0, 0, 0), fn(acc, entry) {
-    let #(min_row, max_row, min_col, max_col) = acc
-    let #(grid2d.Index2D(r, c), _) = entry
-    #(
-      int.min(r, min_row),
-      int.max(r, max_row),
-      int.min(c, min_col),
-      int.max(c, max_col),
-    )
-  })
-}
-
 pub fn render_grid(grid: grid2d.Grid2D(a), char_fn: fn(a) -> String) -> String {
-  let #(min_row, max_row, min_col, max_col) = grid_bounds(grid)
+  let cells = dict.keys(grid)
 
+  // Get the bounds of the grid so we can iterate over every space, even
+  // empty ones.
+  let #(min_row, max_row, min_col, max_col) =
+    list.fold(cells, #(0, 0, -1, -1), fn(acc, idx) {
+      let #(min_row, max_row, min_col, max_col) = acc
+      let grid2d.Index2D(r, c) = idx
+      #(
+        int.min(r, min_row),
+        int.max(r, max_row),
+        int.min(c, min_col),
+        int.max(c, max_col),
+      )
+    })
+
+  // Iterate over every possible index in the grid, fetch the tile from the
+  // original grid, and add it to the 2D list of characters to be printed.
   let char_grid =
-    list.range(min_row, max_row)
-    |> list.map(fn(row) {
-      list.range(min_col, max_col)
-      |> list.map(fn(col) {
+    list.map(list.range(min_row, max_row), fn(row) {
+      list.map(list.range(min_col, max_col), fn(col) {
         let index = grid2d.Index2D(row, col)
         case grid2d.get(grid, index) {
           Ok(value) -> char_fn(value)

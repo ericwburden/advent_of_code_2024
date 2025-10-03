@@ -1,20 +1,25 @@
 import common/grid2d
 import day15/day15.{
   type Direction, type DoubleTile, type Input, type Output, type Tile, Box,
-  DoubleRobot, DoubleWall, Down, Left, LeftBox, Right, RightBox, Robot, Up, Wall,
-  double_tile_to_char, render_grid,
+  DoubleRobot, DoubleWall, LeftBox, RightBox, Robot, Wall, double_tile_to_char,
+  render_grid,
 }
 import day15/parse
+import day15/part1.{move_tile, to_offset}
 import gleam/dict
 import gleam/io
 import gleam/list
 import gleam/result
 
+/// We're going to need to expand our grid horizontally, which means we need to
+/// expand each tile individually. Since they're all handled a little
+/// differently, we use this function to take an entry from the original
+/// grid2d.Grid2D(Tile) and convert it to an entry for a 
+/// grid2d.Grid2D(DoubleTile), expanding the column indices as necessary.
 fn tile_to_double_entries(
-  index: grid2d.Index2D,
-  tile: Tile,
+  tile_entry: #(grid2d.Index2D, Tile),
 ) -> List(#(grid2d.Index2D, DoubleTile)) {
-  let grid2d.Index2D(row, col) = index
+  let #(grid2d.Index2D(row, col), tile) = tile_entry
   case tile {
     Wall -> [
       #(grid2d.Index2D(row, col * 2), DoubleWall),
@@ -28,54 +33,13 @@ fn tile_to_double_entries(
   }
 }
 
-pub fn to_double_grid(grid: grid2d.Grid2D(Tile)) -> grid2d.Grid2D(DoubleTile) {
+/// Maps over a grid2d.Grid2D(Tile) and converts it to a 
+/// grid2d.Grid2D(DoubleTile).
+fn to_double_grid(grid: grid2d.Grid2D(Tile)) -> grid2d.Grid2D(DoubleTile) {
   grid
   |> dict.to_list
-  |> list.flat_map(fn(entry) {
-    let #(index, tile) = entry
-    tile_to_double_entries(index, tile)
-  })
+  |> list.flat_map(tile_to_double_entries)
   |> dict.from_list
-}
-
-fn double_robot_index(robot: grid2d.Index2D) -> grid2d.Index2D {
-  let grid2d.Index2D(row, col) = robot
-  grid2d.Index2D(row, col * 2)
-}
-
-fn apply_direction(
-  index: grid2d.Index2D,
-  direction: Direction,
-) -> grid2d.Index2D {
-  let grid2d.Index2D(row, col) = index
-  case direction {
-    Up -> grid2d.Index2D(row - 1, col)
-    Down -> grid2d.Index2D(row + 1, col)
-    Left -> grid2d.Index2D(row, col - 1)
-    Right -> grid2d.Index2D(row, col + 1)
-  }
-}
-
-fn set_robot_position(
-  grid: grid2d.Grid2D(DoubleTile),
-  from: grid2d.Index2D,
-  to: grid2d.Index2D,
-) -> grid2d.Grid2D(DoubleTile) {
-  grid
-  |> dict.delete(from)
-  |> dict.insert(to, DoubleRobot)
-}
-
-fn normalize_pair(
-  left: grid2d.Index2D,
-  right: grid2d.Index2D,
-) -> #(grid2d.Index2D, grid2d.Index2D) {
-  let grid2d.Index2D(_, left_col) = left
-  let grid2d.Index2D(_, right_col) = right
-  case left_col <= right_col {
-    True -> #(left, right)
-    False -> #(right, left)
-  }
 }
 
 fn box_pair(
@@ -84,8 +48,8 @@ fn box_pair(
 ) -> #(grid2d.Index2D, grid2d.Index2D) {
   let grid2d.Index2D(row, col) = index
   case tile {
-    LeftBox -> normalize_pair(index, grid2d.Index2D(row, col + 1))
-    RightBox -> normalize_pair(grid2d.Index2D(row, col - 1), index)
+    LeftBox -> #(index, grid2d.Index2D(row, col + 1))
+    RightBox -> #(grid2d.Index2D(row, col - 1), index)
     _ -> #(index, index)
   }
 }
@@ -108,35 +72,29 @@ fn push_pair(
   direction: Direction,
   visited: List(#(grid2d.Index2D, grid2d.Index2D)),
 ) -> Result(grid2d.Grid2D(DoubleTile), Nil) {
-  let pair = normalize_pair(left, right)
-  case pair_member(visited, pair) {
+  case pair_member(visited, #(left, right)) {
     True -> Ok(grid)
     False -> {
-      let #(pair_left, pair_right) = pair
-      let visited = [pair, ..visited]
-      let next_left = apply_direction(pair_left, direction)
-      let next_right = apply_direction(pair_right, direction)
+      let visited = [#(left, right), ..visited]
 
-      use grid_after_left <- result.try(push_neighbor(
-        grid,
-        next_left,
-        direction,
-        visited,
-        pair,
-      ))
+      let next_left = grid2d.apply_offset(left, to_offset(direction))
+      let next_right = grid2d.apply_offset(right, to_offset(direction))
 
-      use grid_after_both <- result.try(push_neighbor(
-        grid_after_left,
-        next_right,
-        direction,
-        visited,
-        pair,
-      ))
+      use grid_after_left <- result.try(
+        push_neighbor(grid, next_left, direction, visited, #(left, right)),
+      )
+
+      use grid_after_both <- result.try(
+        push_neighbor(grid_after_left, next_right, direction, visited, #(
+          left,
+          right,
+        )),
+      )
 
       Ok(
         grid_after_both
-        |> dict.delete(pair_left)
-        |> dict.delete(pair_right)
+        |> dict.delete(left)
+        |> dict.delete(right)
         |> dict.insert(next_left, LeftBox)
         |> dict.insert(next_right, RightBox),
       )
@@ -194,13 +152,13 @@ fn move_robot(
   robot: grid2d.Index2D,
   direction: Direction,
 ) -> #(grid2d.Grid2D(DoubleTile), grid2d.Index2D) {
-  let next = apply_direction(robot, direction)
+  let next = grid2d.apply_offset(robot, to_offset(direction))
   case dict.get(grid, next) {
     Ok(DoubleWall) -> #(grid, robot)
     Ok(LeftBox) ->
       case push_boxes(grid, next, direction) {
         Ok(grid_after_push) -> #(
-          set_robot_position(grid_after_push, robot, next),
+          move_tile(grid_after_push, robot, next, DoubleRobot),
           next,
         )
         Error(_) -> #(grid, robot)
@@ -208,13 +166,13 @@ fn move_robot(
     Ok(RightBox) ->
       case push_boxes(grid, next, direction) {
         Ok(grid_after_push) -> #(
-          set_robot_position(grid_after_push, robot, next),
+          move_tile(grid_after_push, robot, next, DoubleRobot),
           next,
         )
         Error(_) -> #(grid, robot)
       }
-    Ok(_) -> #(set_robot_position(grid, robot, next), next)
-    Error(_) -> #(set_robot_position(grid, robot, next), next)
+    Ok(_) -> #(move_tile(grid, robot, next, DoubleRobot), next)
+    Error(_) -> #(move_tile(grid, robot, next, DoubleRobot), next)
   }
 }
 
@@ -227,7 +185,7 @@ pub fn solve(input: Input) -> Output {
   use #(grid, robot, directions) <- result.try(input)
 
   let double_grid = to_double_grid(grid)
-  let double_robot = double_robot_index(robot)
+  let double_robot = grid2d.Index2D(robot.row, robot.col * 2)
 
   let #(final_grid, _) =
     list.fold(directions, #(double_grid, double_robot), fn(acc, direction) {
@@ -251,7 +209,7 @@ pub fn main() -> Nil {
   let assert Ok(#(grid, robot, directions)) = parse_input_result
 
   let double_grid = to_double_grid(grid)
-  let double_robot = double_robot_index(robot)
+  let double_robot = grid2d.Index2D(robot.row, robot.col * 2)
 
   render_grid(double_grid, double_tile_to_char) |> io.println
 
