@@ -4,9 +4,9 @@ import day16/parse
 import day16/part1
 import day16/part2
 
-pub const part1_expected = 0
+pub const part1_expected = 85_420
 
-pub const part2_expected = 0
+pub const part2_expected = 492
 
 pub fn main() {
   let input = parse.read_input(day16.input_path)

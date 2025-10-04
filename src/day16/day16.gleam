@@ -11,7 +11,7 @@ pub type Direction {
   West
 }
 
-/// Everything the navigation code needs: the start tile paired with its
+/// Everything the path-finding code needs: the start tile paired with its
 /// initial heading, the goal tile, and the set of impassable wall locations.
 pub type ValidInput {
   ValidInput(

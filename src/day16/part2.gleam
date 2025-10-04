@@ -1,6 +1,6 @@
 import common/grid2d
-import day16/day16.{type Input, type Output, example1_path}
-import day16/navigation
+import day16/day16.{type Input, type Output, ValidInput, example1_path}
+import day16/dijkstra
 import day16/parse
 import gleam/dict
 import gleam/int
@@ -13,11 +13,11 @@ import gleam/set
 /// total path cost optimal. We use this to walk backwards from the goal without
 /// rerunning Dijkstra on a reversed graph (which would double-count turn costs).
 fn optimal_predecessors(
-  distances: dict.Dict(navigation.Reindeer, Int),
+  distances: dict.Dict(dijkstra.Reindeer, Int),
   walls: set.Set(grid2d.Index2D),
-) -> dict.Dict(navigation.Reindeer, List(navigation.Reindeer)) {
+) -> dict.Dict(dijkstra.Reindeer, List(dijkstra.Reindeer)) {
   dict.fold(distances, dict.new(), fn(acc, state, cost) {
-    navigation.next_possible_states(state, walls)
+    dijkstra.next_possible_states(state, walls)
     |> list.fold(acc, fn(acc, neighbor_entry) {
       let #(neighbor_state, edge_cost) = neighbor_entry
       case dict.get(distances, neighbor_state) {
@@ -37,10 +37,10 @@ fn optimal_predecessors(
 /// optimal route. This is a simple depth-first walk using an explicit frontier
 /// list.
 fn collect_optimal_states(
-  frontier: List(navigation.Reindeer),
-  predecessors: dict.Dict(navigation.Reindeer, List(navigation.Reindeer)),
-  seen: set.Set(navigation.Reindeer),
-) -> set.Set(navigation.Reindeer) {
+  frontier: List(dijkstra.Reindeer),
+  predecessors: dict.Dict(dijkstra.Reindeer, List(dijkstra.Reindeer)),
+  seen: set.Set(dijkstra.Reindeer),
+) -> set.Set(dijkstra.Reindeer) {
   case frontier {
     [] -> seen
     [state, ..rest] ->
@@ -65,15 +65,12 @@ fn collect_optimal_states(
 /// how many unique positions those states cover.
 pub fn solve(input: Input) -> Output {
   use valid_input <- result.try(input)
+  let ValidInput(start, goal, walls) = valid_input
 
-  let start = navigation.start_state(valid_input)
-  let walls = navigation.walls(valid_input)
-  let goal = navigation.goal(valid_input)
-
-  let distances = navigation.dijkstra([#(start, 0)], walls)
+  let distances = dijkstra.map_shortest_distances_from_start(start, walls)
 
   let min_cost_result =
-    navigation.min_cost_to_goal(distances, goal)
+    dijkstra.cost_of_shortest_path(distances, goal)
     |> result.map_error(fn(_) {
       "No path found from the start to the end position"
     })
@@ -83,7 +80,7 @@ pub fn solve(input: Input) -> Output {
   let predecessors = optimal_predecessors(distances, walls)
 
   let goal_states =
-    navigation.goal_states(goal)
+    dijkstra.goal_states(goal)
     |> list.filter(fn(state) {
       case dict.get(distances, state) {
         Ok(cost) -> cost == min_cost

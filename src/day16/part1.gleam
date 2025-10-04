@@ -1,5 +1,5 @@
-import day16/day16.{type Input, type Output, example1_path}
-import day16/navigation
+import day16/day16.{type Input, type Output, ValidInput, example1_path}
+import day16/dijkstra
 import day16/parse
 import gleam/int
 import gleam/io
@@ -11,13 +11,11 @@ import gleam/result
 /// the result into the expected `Result(Int, String)` wrapper.
 pub fn solve(input: Input) -> Output {
   use valid_input <- result.try(input)
-  let start = navigation.start_state(valid_input)
-  let walls = navigation.walls(valid_input)
-  let goal = navigation.goal(valid_input)
+  let ValidInput(start, goal, walls) = valid_input
 
-  let distances = navigation.dijkstra([#(start, 0)], walls)
+  let distances = dijkstra.map_shortest_distances_from_start(start, walls)
 
-  case navigation.min_cost_to_goal(distances, goal) {
+  case dijkstra.cost_of_shortest_path(distances, goal) {
     Ok(cost) -> Ok(cost)
     Error(_) -> Error("No path found from the start to the end position")
   }
