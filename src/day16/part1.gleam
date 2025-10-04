@@ -6,7 +6,7 @@ import gleam/io
 import gleam/result
 
 /// Part 1 asks for the minimum cost required to travel from the start to the
-/// exit. All of the heavy lifting happens inside the shared `navigation`
+/// exit. All of the heavy lifting happens inside the shared `dijkstra`
 /// helpers; here we simply parse the input, run Dijkstra once, and translate
 /// the result into the expected `Result(Int, String)` wrapper.
 pub fn solve(input: Input) -> Output {
@@ -21,8 +21,6 @@ pub fn solve(input: Input) -> Output {
   }
 }
 
-/// Small helper binary so we can smoke-test the solver against the first sample
-/// maze from the command line.
 pub fn main() -> Nil {
   let solve_result = example1_path |> parse.read_input |> solve
   case solve_result {
