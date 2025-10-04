@@ -10,6 +10,9 @@ import gleam/result
 import gleam/string
 import simplifile
 
+/// Takes a single character from the map and decides which warehouse inhabitant
+/// it represents. Walls, boxes, and the robot become tiles, while empty spaces
+/// quietly disappear with `None` so we can keep the grid sparse.
 fn parse_tile(ch: String) -> Result(Option(Tile), String) {
   case ch {
     "#" -> Ok(Some(Wall))
@@ -20,6 +23,9 @@ fn parse_tile(ch: String) -> Result(Option(Tile), String) {
   }
 }
 
+/// Walks one line of the input grid, turning each interesting character into a
+/// `grid2d.Index2D`/`Tile` pair. Empty cells are skipped, and any unexpected
+/// glyphs bubble up as a friendly parsing error.
 fn parse_grid_row(
   row: Int,
   line: String,
@@ -46,6 +52,9 @@ fn parse_grid_row(
   })
 }
 
+/// Parses the entire warehouse layout into a grid and pinpoints the robot's
+/// starting coordinates. We stitch the row results together, build a sparse
+/// dict-backed grid, and double-check that the robot actually exists.
 fn parse_grid(
   text: String,
 ) -> Result(#(grid2d.Grid2D(Tile), grid2d.Index2D), String) {
@@ -76,6 +85,8 @@ fn parse_grid(
   Ok(#(grid, robot))
 }
 
+/// Similar idea for the instruction stream: map arrow glyphs to their matching
+/// cardinal directions, complain if anything unexpected sneaks in.
 fn parse_direction(ch: String) -> Result(Direction, String) {
   case ch {
     "^" -> Ok(Up)
@@ -86,6 +97,8 @@ fn parse_direction(ch: String) -> Result(Direction, String) {
   }
 }
 
+/// Converts the full run of instructions into a directional playlist. We strip
+/// whitespace, ignore newlines, and translate each arrow into a `Direction`.
 fn parse_directions(text: String) -> Result(List(Direction), String) {
   text
   |> string.trim

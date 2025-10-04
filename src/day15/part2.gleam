@@ -94,33 +94,30 @@ fn try_to_push_whole_box_go(
       let next_left = grid2d.apply_offset(prev_left, to_offset(direction))
       let next_right = grid2d.apply_offset(prev_right, to_offset(direction))
 
-      // Inspect the tile directly ahead of one half of the box. If something
-      // blocks the way, we recurse before moving this pair; otherwise we let
-      // the push continue unchanged.
-      let try_push = fn(current_grid, half_box) {
-        // Skip the tiles belonging to the box we're already moving so we
-        // don't recurse into the same pair and loop forever.
-        case half_box == prev_left || half_box == prev_right {
-          True -> Ok(current_grid)
-          False ->
-            try_to_push_single_tile_go(
-              current_grid,
-              direction,
-              already_pushed,
-              half_box,
-            )
-        }
-      }
-
-      // Because the box occupies two tiles, push the left half and then the
-      // right. If either step fails, the whole chain aborts.
-      use grid_try_left <- result.try(try_push(grid, next_left))
-      use grid_try_both <- result.try(try_push(grid_try_left, next_right))
+      // Inspect the tiles directly ahead of each half. If something blocks the
+      // way we recurse before moving this pair; otherwise we let the push
+      // continue unchanged.
+      use grid_after_push <- result.try(
+        list.try_fold([next_left, next_right], grid, fn(current_grid, half_box) {
+          // Skip the tiles belonging to the box we're already moving so we don't
+          // recurse into the same pair and loop forever.
+          case half_box == prev_left || half_box == prev_right {
+            True -> Ok(current_grid)
+            False ->
+              try_to_push_single_tile_go(
+                current_grid,
+                direction,
+                already_pushed,
+                half_box,
+              )
+          }
+        }),
+      )
 
       // If both succeed, every dependent push has already completed so we can
       // update the grid to reflect this box's new location.
       let grid_with_box_moved =
-        grid_try_both
+        grid_after_push
         |> dict.delete(prev_left)
         |> dict.delete(prev_right)
         |> dict.insert(next_left, LeftBox)
