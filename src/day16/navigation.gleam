@@ -11,13 +11,13 @@ import gleamy/priority_queue
 
 /// Shared navigation helpers for both parts. Everything in here revolves around
 /// the `(position, direction)` state we feed into Dijkstra.
-pub type State =
+pub type Reindeer =
   #(grid2d.Index2D, Direction)
 
 /// The priority queue stores cost/state pairs, so we give them a dedicated type
 /// alias to keep signatures readable.
 pub type QueueEntry =
-  #(Int, State)
+  #(Int, Reindeer)
 
 /// Rotating 90° costs 1,000 points in the puzzle description.
 pub const rotate_cost = 1000
@@ -62,40 +62,31 @@ fn turn_right(direction: Direction) -> Direction {
   }
 }
 
-/// If the tile directly ahead is open, return the resulting state and cost.
-fn forward_neighbor(
-  position: grid2d.Index2D,
-  direction: Direction,
-  walls: set.Set(grid2d.Index2D),
-) -> List(#(State, Int)) {
-  let next_position = grid2d.apply_offset(position, direction_offset(direction))
-
-  case set.contains(walls, next_position) {
-    True -> []
-    False -> [#(#(next_position, direction), forward_cost)]
-  }
-}
-
 /// Enumerate every legal move from the current state.
-pub fn neighbors(
-  state: State,
+pub fn next_possible_states(
+  state: Reindeer,
   walls: set.Set(grid2d.Index2D),
-) -> List(#(State, Int)) {
+) -> List(#(Reindeer, Int)) {
   let #(position, direction) = state
 
-  [
+  let turns = [
     #(#(position, turn_left(direction)), rotate_cost),
     #(#(position, turn_right(direction)), rotate_cost),
-    ..forward_neighbor(position, direction, walls)
   ]
+
+  let next_position = grid2d.apply_offset(position, direction_offset(direction))
+  case set.contains(walls, next_position) {
+    True -> turns
+    False -> [#(#(next_position, direction), forward_cost), ..turns]
+  }
 }
 
 /// Generic Dijkstra runner. The caller supplies the initial frontier with their
 /// chosen costs and the function returns the full distance map.
 pub fn dijkstra(
-  initial: List(#(State, Int)),
+  initial: List(#(Reindeer, Int)),
   walls: set.Set(grid2d.Index2D),
-) -> dict.Dict(State, Int) {
+) -> dict.Dict(Reindeer, Int) {
   let queue0 = priority_queue.new(compare_queue_entries)
 
   let queue =
@@ -115,7 +106,7 @@ pub fn dijkstra(
 
 /// Given a finished distance map, find the cheapest way to reach the goal tile.
 pub fn min_cost_to_goal(
-  distances: dict.Dict(State, Int),
+  distances: dict.Dict(Reindeer, Int),
   goal: grid2d.Index2D,
 ) -> Result(Int, Nil) {
   dict.fold(distances, Error(Nil), fn(acc, state, cost) {
@@ -135,9 +126,9 @@ pub fn min_cost_to_goal(
 /// optimal distances have been discovered.
 fn search(
   queue: priority_queue.Queue(QueueEntry),
-  distances: dict.Dict(State, Int),
+  distances: dict.Dict(Reindeer, Int),
   walls: set.Set(grid2d.Index2D),
-) -> dict.Dict(State, Int) {
+) -> dict.Dict(Reindeer, Int) {
   case priority_queue.pop(queue) {
     Error(_) -> distances
     Ok(#(queue_entry, remaining_queue)) -> {
@@ -150,7 +141,7 @@ fn search(
         _ -> {
           let #(next_queue, next_distances) =
             list.fold(
-              neighbors(state, walls),
+              next_possible_states(state, walls),
               #(remaining_queue, distances),
               fn(acc, edge) {
                 let #(queue_acc, dist_acc) = acc
@@ -182,7 +173,7 @@ fn search(
 
 /// A helper that returns the goal tile with every possible facing, which lets
 /// the callers treat orientation and position uniformly.
-pub fn goal_states(goal: grid2d.Index2D) -> List(State) {
+pub fn goal_states(goal: grid2d.Index2D) -> List(Reindeer) {
   [
     #(goal, North),
     #(goal, East),
@@ -192,7 +183,7 @@ pub fn goal_states(goal: grid2d.Index2D) -> List(State) {
 }
 
 /// Convenience accessor that hides the tuple juggling in `ValidInput`.
-pub fn start_state(valid_input: ValidInput) -> State {
+pub fn start_state(valid_input: ValidInput) -> Reindeer {
   let ValidInput(start_state, _, _) = valid_input
   start_state
 }

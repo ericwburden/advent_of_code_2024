@@ -13,11 +13,11 @@ import gleam/set
 /// total path cost optimal. We use this to walk backwards from the goal without
 /// rerunning Dijkstra on a reversed graph (which would double-count turn costs).
 fn optimal_predecessors(
-  distances: dict.Dict(navigation.State, Int),
+  distances: dict.Dict(navigation.Reindeer, Int),
   walls: set.Set(grid2d.Index2D),
-) -> dict.Dict(navigation.State, List(navigation.State)) {
+) -> dict.Dict(navigation.Reindeer, List(navigation.Reindeer)) {
   dict.fold(distances, dict.new(), fn(acc, state, cost) {
-    navigation.neighbors(state, walls)
+    navigation.next_possible_states(state, walls)
     |> list.fold(acc, fn(acc, neighbor_entry) {
       let #(neighbor_state, edge_cost) = neighbor_entry
       case dict.get(distances, neighbor_state) {
@@ -37,10 +37,10 @@ fn optimal_predecessors(
 /// optimal route. This is a simple depth-first walk using an explicit frontier
 /// list.
 fn collect_optimal_states(
-  frontier: List(navigation.State),
-  predecessors: dict.Dict(navigation.State, List(navigation.State)),
-  seen: set.Set(navigation.State),
-) -> set.Set(navigation.State) {
+  frontier: List(navigation.Reindeer),
+  predecessors: dict.Dict(navigation.Reindeer, List(navigation.Reindeer)),
+  seen: set.Set(navigation.Reindeer),
+) -> set.Set(navigation.Reindeer) {
   case frontier {
     [] -> seen
     [state, ..rest] ->
