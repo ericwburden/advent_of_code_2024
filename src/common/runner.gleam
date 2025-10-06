@@ -1,3 +1,4 @@
+import common/types
 import gleam/int
 import gleam/io
 import gleam/list
@@ -23,27 +24,40 @@ pub fn elapsed_milliseconds(start: Int, finish: Int) -> Int {
   finish - start
 }
 
-pub fn run_day(
-  day: Int,
-  input: input,
-  parts: List(#(String, Int, fn(input) -> Result(Int, String))),
-) {
+pub fn run_day(day: Int, input: input, parts: List(types.RunnerPart(input))) {
   io.println("🗓️  Day " <> int.to_string(day))
   list.each(parts, fn(part) { run_part(input, part) })
 }
 
-fn run_part(
+fn run_part(input: input, part: types.RunnerPart(input)) {
+  case part {
+    types.IntPart(label: label, expected: expected, solver: solver) ->
+      run_solver(input, label, expected, solver, fn(a, b) { a == b }, fn(value) {
+        int.to_string(value)
+      })
+
+    types.StringPart(label: label, expected: expected, solver: solver) ->
+      run_solver(input, label, expected, solver, fn(a, b) { a == b }, fn(value) {
+        "\"" <> value <> "\""
+      })
+  }
+}
+
+fn run_solver(
   input: input,
-  part: #(String, Int, fn(input) -> Result(Int, String)),
+  label: String,
+  expected: output,
+  solver: fn(input) -> Result(output, String),
+  equals: fn(output, output) -> Bool,
+  format: fn(output) -> String,
 ) {
-  let #(label, expected, solver) = part
   let start = now_milliseconds()
 
   case solver(input) {
     Ok(result) -> {
       let finish = now_milliseconds()
       let duration = elapsed_milliseconds(start, finish)
-      case result == expected {
+      case equals(result, expected) {
         True ->
           io.println(
             "  ✅ \u{001b}[1;32m"
@@ -52,7 +66,8 @@ fn run_part(
             <> int.to_string(duration)
             <> "ms\u{001b}[0m",
           )
-        False ->
+
+        False -> {
           io.println(
             "  🛑 \u{001b}[1;31m"
             <> label
@@ -60,8 +75,28 @@ fn run_part(
             <> int.to_string(duration)
             <> "ms\u{001b}[0m",
           )
+          io.println("      expected: " <> format(expected))
+          io.println("           got: " <> format(result))
+        }
       }
     }
+
     Error(message) -> panic as message
   }
+}
+
+pub fn int_part(
+  label: String,
+  expected: Int,
+  solver: fn(input) -> Result(Int, String),
+) -> types.RunnerPart(input) {
+  types.IntPart(label: label, expected: expected, solver: solver)
+}
+
+pub fn string_part(
+  label: String,
+  expected: String,
+  solver: fn(input) -> Result(String, String),
+) -> types.RunnerPart(input) {
+  types.StringPart(label: label, expected: expected, solver: solver)
 }

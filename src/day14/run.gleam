@@ -16,7 +16,7 @@ pub fn main() {
   let part2_solve = fn(input) { part2.solve(input, 101, 103) }
 
   runner.run_day(14, input, [
-    #("Part 1", part1_expected, part1_solve),
-    #("Part 2", part2_expected, part2_solve),
+    runner.int_part("Part 1", part1_expected, part1_solve),
+    runner.int_part("Part 2", part2_expected, part2_solve),
   ])
 }
