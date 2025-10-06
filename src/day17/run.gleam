@@ -4,7 +4,7 @@ import day17/parse
 import day17/part1
 import day17/part2
 
-pub const part1_expected = ""
+pub const part1_expected = "3,1,4,3,1,7,1,6,3"
 
 pub const part2_expected = ""
 
