@@ -1,6 +1,6 @@
 import day17/day17.{type Input, type InstructionSet, type Output}
 import day17/parse
-import day17/part1.{instruction_set_from_raw, run_program}
+import day17/part1.{instruction_set_from_raw}
 import gleam/int
 import gleam/list
 import gleam/result
