@@ -8,6 +8,7 @@ pub const part1_expected = "3,1,4,3,1,7,1,6,3"
 
 pub const part2_expected = "37221270076916"
 
+/// Hook the Day 17 solvers into the shared runner harness.
 pub fn main() {
   let input = parse.read_input(day17.input_path)
   runner.run_day(17, input, [

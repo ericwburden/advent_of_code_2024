@@ -6,11 +6,14 @@ import gleam/list
 import gleam/result
 import gleam/string
 
+/// Errors surfaced while executing the Day 17 VM.
 pub type ErrorType {
   Halted
   InvalidRegister(String)
 }
 
+/// Convert the raw opcode/operand pairs into the strongly typed instructions
+/// defined in `day17.gleam`.
 fn parse_instruction(opcode: Int, operand: Int) -> day17.Instruction {
   case opcode {
     0 -> day17.ADV(value: operand)
@@ -25,6 +28,7 @@ fn parse_instruction(opcode: Int, operand: Int) -> day17.Instruction {
   }
 }
 
+/// Build the instruction set dictionary keyed by instruction pointer.
 pub fn instruction_set_from_raw(raw: List(Int)) -> InstructionSet {
   raw
   |> list.window_by_2
@@ -36,6 +40,7 @@ pub fn instruction_set_from_raw(raw: List(Int)) -> InstructionSet {
   })
 }
 
+/// Resolve the "combo" operand addressing mode described in the puzzle text.
 fn combo_operand_value(registers: day17.Registers, operand: Int) -> Int {
   case operand {
     4 -> registers.a
@@ -45,6 +50,8 @@ fn combo_operand_value(registers: day17.Registers, operand: Int) -> Int {
   }
 }
 
+/// Implementations for each opcode follow, mutating the target register(s) as
+/// specified by the puzzle.
 fn adv(registers: day17.Registers, operand: Int) -> day17.Registers {
   let denominator = combo_operand_value(registers, operand)
   let new_a = int.bitwise_shift_right(registers.a, denominator)
@@ -91,6 +98,20 @@ fn cdv(registers: day17.Registers, operand: Int) -> day17.Registers {
   day17.Registers(registers.a, registers.b, new_c)
 }
 
+/// Helper to build the next `ProgramState` without repeating all three fields.
+fn build_program_state(
+  registers: day17.Registers,
+  pointer: Int,
+  output: List(Int),
+) -> day17.ProgramState {
+  day17.ProgramState(
+    registers: registers,
+    instruction_pointer: pointer,
+    output: output,
+  )
+}
+
+/// Advance the VM by executing the instruction at the current pointer.
 pub fn next(
   state: day17.ProgramState,
   instructions: InstructionSet,
@@ -100,60 +121,22 @@ pub fn next(
     Error(Nil) -> Error(Halted)
     Ok(instruction) ->
       case instruction {
-        day17.ADV(v) ->
-          Ok(day17.ProgramState(
-            registers: adv(reg, v),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.BDV(v) ->
-          Ok(day17.ProgramState(
-            registers: bdv(reg, v),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.BST(v) ->
-          Ok(day17.ProgramState(
-            registers: bst(reg, v),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.BXC ->
-          Ok(day17.ProgramState(
-            registers: bxc(reg),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.BXL(v) ->
-          Ok(day17.ProgramState(
-            registers: bxl(reg, v),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.CDV(v) ->
-          Ok(day17.ProgramState(
-            registers: cdv(reg, v),
-            instruction_pointer: p + 2,
-            output: output,
-          ))
-        day17.JNZ(v) ->
-          Ok(day17.ProgramState(
-            registers: reg,
-            instruction_pointer: jnz(reg, v, p),
-            output: output,
-          ))
-        day17.OUT(v) ->
-          Ok(
-            day17.ProgramState(
-              registers: reg,
-              instruction_pointer: p + 2,
-              output: [out(reg, v), ..output],
-            ),
-          )
+        day17.ADV(v) -> Ok(build_program_state(adv(reg, v), p + 2, output))
+        day17.BDV(v) -> Ok(build_program_state(bdv(reg, v), p + 2, output))
+        day17.BST(v) -> Ok(build_program_state(bst(reg, v), p + 2, output))
+        day17.BXC -> Ok(build_program_state(bxc(reg), p + 2, output))
+        day17.BXL(v) -> Ok(build_program_state(bxl(reg, v), p + 2, output))
+        day17.CDV(v) -> Ok(build_program_state(cdv(reg, v), p + 2, output))
+        day17.JNZ(v) -> Ok(build_program_state(reg, jnz(reg, v, p), output))
+        day17.OUT(v) -> {
+          let new_output = [out(reg, v), ..output]
+          Ok(build_program_state(reg, p + 2, new_output))
+        }
       }
   }
 }
 
+/// Run until the program halts, returning the final machine state.
 pub fn run_program(
   state: day17.ProgramState,
   instructions: InstructionSet,
@@ -164,6 +147,8 @@ pub fn run_program(
   }
 }
 
+/// Execute the input program and return the comma-separated output required by
+/// the puzzle description.
 pub fn solve(input: Input) -> Output {
   use #(initial_state, raw_instructions) <- result.try(input)
   let instruction_set = instruction_set_from_raw(raw_instructions)
@@ -177,5 +162,5 @@ pub fn solve(input: Input) -> Output {
 }
 
 pub fn main() -> Output {
-  day17.input_path |> parse.read_input |> echo |> solve |> echo
+  day17.input_path |> parse.read_input |> solve |> echo
 }

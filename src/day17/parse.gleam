@@ -3,89 +3,117 @@ import gleam/int
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp
+import gleam/result
 import gleam/string
 import simplifile
 
-fn parse_int(text: String) -> Int {
-  let assert Ok(value) = int.parse(text)
-  value
+/// Parse a decimal string into an `Int`, returning a friendly error message on
+/// failure instead of crashing.
+fn parse_int(text: String) -> Result(Int, String) {
+  case int.parse(text) {
+    Ok(value) -> Ok(value)
+    Error(_) -> Error("Could not parse an Int from: " <> text)
+  }
 }
 
-fn parse_registers(section: String) -> d17.Registers {
-  let assert [a_line, b_line, c_line] =
-    section
-    |> string.trim
-    |> string.split(on: "\n")
-    |> list.filter(fn(line) { string.length(string.trim(line)) > 0 })
-
-  d17.Registers(
-    a: parse_register_line(a_line, "A"),
-    b: parse_register_line(b_line, "B"),
-    c: parse_register_line(c_line, "C"),
-  )
+/// Trim the surrounding whitespace and drop any blank lines left in between.
+fn non_blank_lines(section: String) -> List(String) {
+  section
+  |> string.trim
+  |> string.split(on: "\n")
+  |> list.filter(fn(line) { string.length(string.trim(line)) > 0 })
 }
 
-fn parse_register_line(line: String, expected_label: String) -> Int {
-  let pattern = register_pattern()
-  let assert [match, ..] =
-    regexp.scan(with: pattern, content: string.trim(line))
-  let assert [Some(label), Some(value_text)] = match.submatches
-  let assert True = label == expected_label
-  parse_int(value_text)
+/// Decode the three register initialisers from the header of the input file.
+fn parse_registers(section: String) -> Result(d17.Registers, String) {
+  case non_blank_lines(section) {
+    [a_line, b_line, c_line] -> {
+      use a <- result.try(parse_register_line(a_line, "A"))
+      use b <- result.try(parse_register_line(b_line, "B"))
+      use c <- result.try(parse_register_line(c_line, "C"))
+      Ok(d17.Registers(a: a, b: b, c: c))
+    }
+    _ -> Error("Expected register definitions for A, B, and C")
+  }
 }
 
-fn register_pattern() -> regexp.Regexp {
+/// Parse a single register line, ensuring the expected label is present.
+fn parse_register_line(
+  line: String,
+  expected_label: String,
+) -> Result(Int, String) {
   let assert Ok(pattern) = regexp.from_string("^Register ([ABC]): (\\d+)$")
-  pattern
-}
+  let trimmed = string.trim(line)
+  let parse_error = "Could not parse register line: " <> trimmed
 
-fn parse_program(section: String) -> List(Int) {
-  let assert [line] =
-    section
-    |> string.trim
-    |> string.split(on: "\n")
-    |> list.filter(fn(line) { string.length(string.trim(line)) > 0 })
-
-  let pattern = program_pattern()
-  let assert [match, ..] =
-    regexp.scan(with: pattern, content: string.trim(line))
-  let assert [Some(values_part)] = match.submatches
-
-  let numbers =
-    values_part
-    |> string.split(on: ",")
-    |> list.map(fn(text) { parse_int(string.trim(text)) })
-
-  numbers
-}
-
-fn program_pattern() -> regexp.Regexp {
-  let assert Ok(pattern) = regexp.from_string("^Program: (\\d+(?:,\\d+)*)$")
-  pattern
-}
-
-fn parse_contents(contents: String) -> #(d17.ProgramState, List(Int)) {
-  let assert [register_section, program_section] =
-    contents
-    |> string.trim
-    |> string.split(on: "\n\n")
-
-  let registers = parse_registers(register_section)
-  let raw_program = parse_program(program_section)
-
-  #(
-    d17.ProgramState(
-      registers: registers,
-      instruction_pointer: 0,
-      output: [],
-    ),
-    raw_program,
+  use first_match <- result.try(
+    case regexp.scan(with: pattern, content: trimmed) {
+      [match, ..] -> Ok(match)
+      _ -> Error(parse_error)
+    },
   )
+
+  case first_match.submatches {
+    [Some(label), Some(value)] if label == expected_label -> parse_int(value)
+    _ -> Error(parse_error)
+  }
 }
 
+/// Split the "Program" line into raw opcode/operand integers.
+fn parse_program(section: String) -> Result(List(Int), String) {
+  case non_blank_lines(section) {
+    [line] -> {
+      let assert Ok(pattern) = regexp.from_string("^Program: (\\d+(?:,\\d+)*)$")
+      let trimmed_line = string.trim(line)
+      let parse_error = "Could not parse program line: " <> trimmed_line
+
+      use first_match <- result.try(
+        case regexp.scan(with: pattern, content: trimmed_line) {
+          [match, ..] -> Ok(match)
+          _ -> Error(parse_error)
+        },
+      )
+
+      case first_match.submatches {
+        [Some(values_part)] ->
+          values_part
+          |> string.split(on: ",")
+          |> list.try_map(fn(text) { string.trim(text) |> parse_int })
+        _ -> Error(parse_error)
+      }
+    }
+    _ -> Error("Expected a single program line after the registers")
+  }
+}
+
+/// Fully parse the puzzle input into an initial machine state and the raw
+/// instruction list.
+fn parse_contents(
+  contents: String,
+) -> Result(#(d17.ProgramState, List(Int)), String) {
+  let sections =
+    contents
+    |> string.split(on: "\n\n")
+    |> list.filter(fn(section) { string.length(string.trim(section)) > 0 })
+
+  case sections {
+    [register_section, program_section] -> {
+      use registers <- result.try(parse_registers(register_section))
+      use raw_program <- result.try(parse_program(program_section))
+      Ok(#(d17.ProgramState(registers, 0, []), raw_program))
+    }
+    _ ->
+      Error("Expected register and program sections separated by a blank line")
+  }
+}
+
+/// Read the text file and return the parsed representation expected by the
+/// solvers.
 pub fn read_input(input_path) -> d17.Input {
-  let assert Ok(contents) = simplifile.read(input_path)
-  Ok(parse_contents(contents))
+  simplifile.read(input_path)
+  |> result.map(string.trim)
+  |> result.replace_error("Could not read file at " <> input_path)
+  |> result.try(parse_contents)
 }
 
 pub fn main() {
