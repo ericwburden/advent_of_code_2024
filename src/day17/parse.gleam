@@ -1,5 +1,4 @@
 import day17/day17 as d17
-import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/option.{Some}
@@ -40,32 +39,7 @@ fn register_pattern() -> regexp.Regexp {
   pattern
 }
 
-fn parse_instruction(opcode: Int, operand: Int) -> d17.Instruction {
-  case opcode {
-    0 -> d17.ADV(value: operand)
-    1 -> d17.BXL(value: operand)
-    2 -> d17.BST(value: operand)
-    3 -> d17.JNZ(value: operand)
-    4 -> d17.BXC
-    5 -> d17.OUT(value: operand)
-    6 -> d17.BDV(value: operand)
-    7 -> d17.CDV(value: operand)
-    _ -> panic as "Unexpected opcode"
-  }
-}
-
-fn build_instructions(numbers: List(Int)) -> dict.Dict(Int, d17.Instruction) {
-  numbers
-  |> list.window_by_2
-  |> list.index_map(fn(pair, index) { #(index, pair) })
-  |> list.fold(dict.new(), fn(acc, entry) {
-    let #(index, pair) = entry
-    let #(opcode, operand) = pair
-    dict.insert(acc, index, parse_instruction(opcode, operand))
-  })
-}
-
-fn parse_program(section: String) -> dict.Dict(Int, d17.Instruction) {
+fn parse_program(section: String) -> List(Int) {
   let assert [line] =
     section
     |> string.trim
@@ -82,7 +56,7 @@ fn parse_program(section: String) -> dict.Dict(Int, d17.Instruction) {
     |> string.split(on: ",")
     |> list.map(fn(text) { parse_int(string.trim(text)) })
 
-  build_instructions(numbers)
+  numbers
 }
 
 fn program_pattern() -> regexp.Regexp {
@@ -90,20 +64,22 @@ fn program_pattern() -> regexp.Regexp {
   pattern
 }
 
-fn parse_contents(contents: String) -> d17.ProgramState {
+fn parse_contents(contents: String) -> #(d17.ProgramState, List(Int)) {
   let assert [register_section, program_section] =
     contents
     |> string.trim
     |> string.split(on: "\n\n")
 
   let registers = parse_registers(register_section)
-  let instructions = parse_program(program_section)
+  let raw_program = parse_program(program_section)
 
-  d17.ProgramState(
-    registers: registers,
-    instruction_pointer: 0,
-    instructions: instructions,
-    output: [],
+  #(
+    d17.ProgramState(
+      registers: registers,
+      instruction_pointer: 0,
+      output: [],
+    ),
+    raw_program,
   )
 }
 

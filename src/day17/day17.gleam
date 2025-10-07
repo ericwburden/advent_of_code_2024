@@ -1,11 +1,15 @@
 import gleam/dict
-import gleam/int
-import gleam/list
 
-pub type RegisterName {
-  A
-  B
-  C
+pub type Registers {
+  Registers(a: Int, b: Int, c: Int)
+}
+
+pub type ProgramState {
+  ProgramState(
+    registers: Registers,
+    instruction_pointer: Int,
+    output: List(Int),
+  )
 }
 
 pub type Instruction {
@@ -19,21 +23,11 @@ pub type Instruction {
   CDV(value: Int)
 }
 
-pub type Registers {
-  Registers(a: Int, b: Int, c: Int)
-}
-
-pub type ProgramState {
-  ProgramState(
-    registers: Registers,
-    instruction_pointer: Int,
-    instructions: dict.Dict(Int, Instruction),
-    output: List(Int),
-  )
-}
+pub type InstructionSet =
+  dict.Dict(Int, Instruction)
 
 pub type Input =
-  Result(ProgramState, String)
+  Result(#(ProgramState, List(Int)), String)
 
 pub type Output =
   Result(String, String)
