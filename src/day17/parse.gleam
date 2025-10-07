@@ -107,8 +107,8 @@ fn parse_contents(
   }
 }
 
-/// Read the text file and return the parsed representation expected by the
-/// solvers.
+/// Read the text file and return the parsed representation of the initial
+/// state of the program and the list of instructions.
 pub fn read_input(input_path) -> d17.Input {
   simplifile.read(input_path)
   |> result.map(string.trim)
