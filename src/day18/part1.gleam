@@ -2,48 +2,40 @@ import common/grid2d
 import day18/day18.{type Input, type Output}
 import day18/parse
 import gleam/deque
-import gleam/dict
 import gleam/list
 import gleam/result
 import gleam/set
 
-pub fn empty_grid(grid_size: Int) -> grid2d.Grid2D(Bool) {
-  list.flat_map(list.range(0, grid_size), fn(row) {
-    list.map(list.range(0, grid_size), fn(col) {
-      #(grid2d.Index2D(row, col), True)
-    })
-  })
-  |> dict.from_list
-}
-
-pub fn corrupt_grid_at(
-  grid: grid2d.Grid2D(Bool),
-  at: grid2d.Index2D,
-) -> grid2d.Grid2D(Bool) {
-  dict.insert(grid, at, False)
-}
-
 pub fn get_safe_neighbors(
-  grid: grid2d.Grid2D(Bool),
+  corrupted_bytes: set.Set(grid2d.Index2D),
+  grid_size: Int,
   from: grid2d.Index2D,
 ) -> List(grid2d.Index2D) {
-  grid2d.cardinal_neighbors_like(grid, from, fn(v) { v })
+  grid2d.cardinal_offsets
+  |> list.map(fn(offset) { grid2d.apply_offset(from, offset) })
+  |> list.filter(fn(neighbor) {
+    let grid2d.Index2D(row, col) = neighbor
+    let in_bounds = row >= 0 && row <= grid_size && col >= 0 && col <= grid_size
+    in_bounds && !set.contains(corrupted_bytes, neighbor)
+  })
 }
 
 pub fn find_shortest_path(
-  grid: grid2d.Grid2D(Bool),
+  corrupted_bytes: set.Set(grid2d.Index2D),
   start: grid2d.Index2D,
   end: grid2d.Index2D,
+  grid_size: Int,
 ) -> Result(Int, String) {
   let queue = deque.new() |> deque.push_back(#(start, 0))
   let visited = set.new() |> set.insert(start)
-  find_shortest_path_go(grid, end, queue, visited)
+  find_shortest_path_go(corrupted_bytes, end, queue, grid_size, visited)
 }
 
 fn find_shortest_path_go(
-  grid: grid2d.Grid2D(Bool),
+  corrupted_bytes: set.Set(grid2d.Index2D),
   goal: grid2d.Index2D,
   queue: deque.Deque(#(grid2d.Index2D, Int)),
+  grid_size: Int,
   visited: set.Set(grid2d.Index2D),
 ) -> Result(Int, String) {
   case deque.pop_front(queue) {
@@ -54,7 +46,7 @@ fn find_shortest_path_go(
         True -> Ok(distance)
         False -> {
           let new_neighbors =
-            get_safe_neighbors(grid, current)
+            get_safe_neighbors(corrupted_bytes, grid_size, current)
             |> list.filter(fn(idx) { !set.contains(visited, idx) })
 
           let #(next_queue, next_visited) =
@@ -67,7 +59,13 @@ fn find_shortest_path_go(
               #(updated_queue, updated_seen)
             })
 
-          find_shortest_path_go(grid, goal, next_queue, next_visited)
+          find_shortest_path_go(
+            corrupted_bytes,
+            goal,
+            next_queue,
+            grid_size,
+            next_visited,
+          )
         }
       }
     }
@@ -76,12 +74,10 @@ fn find_shortest_path_go(
 
 pub fn solve(input: Input, grid_size: Int, num_bytes: Int) -> Output {
   use byte_positions <- result.try(input)
-  let grid = empty_grid(grid_size)
-  let corrupted_grid =
-    byte_positions |> list.take(num_bytes) |> list.fold(grid, corrupt_grid_at)
+  let corrupted_bytes = list.take(byte_positions, num_bytes) |> set.from_list
   let start = grid2d.Index2D(0, 0)
   let end = grid2d.Index2D(grid_size, grid_size)
-  find_shortest_path(corrupted_grid, start, end)
+  find_shortest_path(corrupted_bytes, start, end, grid_size)
 }
 
 pub fn main() -> Output {

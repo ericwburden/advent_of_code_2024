@@ -6,7 +6,7 @@ import day18/part2
 
 pub const part1_expected = 306
 
-pub const part2_expected = ""
+pub const part2_expected = "38,63"
 
 pub fn main() {
   let input = parse.read_input(day18.input_path)

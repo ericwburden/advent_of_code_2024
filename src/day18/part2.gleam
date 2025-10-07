@@ -5,56 +5,68 @@ import day18/part1
 import gleam/int
 import gleam/list
 import gleam/result
-
-fn grid_after_drops(
-  grid_size: Int,
-  byte_positions: List(grid2d.Index2D),
-  count: Int,
-) -> grid2d.Grid2D(Bool) {
-  let bytes_to_apply = list.take(byte_positions, count)
-  list.fold(bytes_to_apply, part1.empty_grid(grid_size), part1.corrupt_grid_at)
-}
+import gleam/set
 
 fn path_still_exists(
-  grid_size: Int,
-  byte_positions: List(grid2d.Index2D),
-  count: Int,
+  corrupted_bytes: set.Set(grid2d.Index2D),
   start: grid2d.Index2D,
   end: grid2d.Index2D,
+  grid_size: Int,
 ) -> Bool {
-  let grid = grid_after_drops(grid_size, byte_positions, count)
-  case part1.find_shortest_path(grid, start, end) {
+  case part1.find_shortest_path(corrupted_bytes, start, end, grid_size) {
     Ok(_) -> True
     Error(_) -> False
   }
 }
 
-fn search_blocking_count(
-  grid_size: Int,
+fn binary_search_for_blocking_byte(
   byte_positions: List(grid2d.Index2D),
+  already_dropped: Int,
+  grid_size: Int,
+  start: grid2d.Index2D,
+  end: grid2d.Index2D,
+) -> Result(grid2d.Index2D, Nil) {
+  binary_search_for_blocking_byte_go(
+    byte_positions,
+    grid_size,
+    start,
+    end,
+    already_dropped,
+    list.length(byte_positions),
+  )
+}
+
+fn binary_search_for_blocking_byte_go(
+  bytes: List(grid2d.Index2D),
+  grid_size: Int,
   start: grid2d.Index2D,
   end: grid2d.Index2D,
   low: Int,
   high: Int,
-) -> Int {
+) -> Result(grid2d.Index2D, Nil) {
   case low < high {
-    False -> low
+    False -> byte_at_index(bytes, low)
     True -> {
       let mid = low + int.bitwise_shift_right(high - low, 1)
-      case path_still_exists(grid_size, byte_positions, mid, start, end) {
-        True ->
-          search_blocking_count(
-            grid_size,
-            byte_positions,
-            start,
-            end,
-            mid + 1,
-            high,
-          )
-        False ->
-          search_blocking_count(grid_size, byte_positions, start, end, low, mid)
+      let corrupted_bytes = bytes |> list.take(mid) |> set.from_list
+      let keep_searching = fn(l, h) {
+        binary_search_for_blocking_byte_go(bytes, grid_size, start, end, l, h)
+      }
+      case path_still_exists(corrupted_bytes, start, end, grid_size) {
+        True -> keep_searching(mid + 1, high)
+        False -> keep_searching(low, mid)
       }
     }
+  }
+}
+
+fn byte_at_index(
+  bytes: List(grid2d.Index2D),
+  idx: Int,
+) -> Result(grid2d.Index2D, Nil) {
+  case list.drop(bytes, idx - 1) {
+    [next, ..] -> Ok(next)
+    _ -> Error(Nil)
   }
 }
 
@@ -64,36 +76,20 @@ pub fn solve(
   num_bytes: Int,
 ) -> Result(String, String) {
   use byte_positions <- result.try(input)
-  let total_bytes = list.length(byte_positions)
   let start = grid2d.Index2D(0, 0)
   let end = grid2d.Index2D(grid_size, grid_size)
 
-  case path_still_exists(grid_size, byte_positions, num_bytes, start, end) {
-    False -> Error("The initial prefix already blocks the exit")
-    True -> {
-      case
-        path_still_exists(grid_size, byte_positions, total_bytes, start, end)
-      {
-        True -> Error("Even the full corruption leaves a path open")
-        False -> {
-          let blocking_count =
-            search_blocking_count(
-              grid_size,
-              byte_positions,
-              start,
-              end,
-              num_bytes + 1,
-              total_bytes,
-            )
-          case list.drop(byte_positions, blocking_count - 1) {
-            [grid2d.Index2D(row, col), ..] ->
-              Ok(int.to_string(col) <> "," <> int.to_string(row))
-            [] -> Error("Blocking byte index out of bounds")
-          }
-        }
-      }
-    }
-  }
+  binary_search_for_blocking_byte(
+    byte_positions,
+    num_bytes,
+    grid_size,
+    start,
+    end,
+  )
+  |> result.map(fn(idx) {
+    int.to_string(idx.col) <> "," <> int.to_string(idx.row)
+  })
+  |> result.map_error(fn(_) { "Could not find a blocking byte!" })
 }
 
 pub fn main() -> Result(String, String) {
