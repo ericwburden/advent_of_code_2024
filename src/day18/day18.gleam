@@ -1,5 +1,7 @@
+import common/grid2d
+
 pub type Input =
-  Nil
+  Result(List(grid2d.Index2D), String)
 
 pub type Output =
   Result(Int, String)

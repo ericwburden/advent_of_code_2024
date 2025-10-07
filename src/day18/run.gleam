@@ -1,17 +1,19 @@
+import common/runner
 import day18/day18
 import day18/parse
 import day18/part1
 import day18/part2
-import common/runner
 
-pub const part1_expected = 0
+pub const part1_expected = 306
 
-pub const part2_expected = 0
+pub const part2_expected = ""
 
 pub fn main() {
   let input = parse.read_input(day18.input_path)
+  let part1_solve = fn(input) { part1.solve(input, 70, 1024) }
+  let part2_solve = fn(input) { part2.solve(input, 70, 1024) }
   runner.run_day(18, input, [
-    #("Part 1", part1_expected, part1.solve),
-    #("Part 2", part2_expected, part2.solve),
+    runner.int_part("Part 1", part1_expected, part1_solve),
+    runner.string_part("Part 2", part2_expected, part2_solve),
   ])
 }
