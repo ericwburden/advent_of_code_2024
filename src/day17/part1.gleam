@@ -92,6 +92,7 @@ pub fn next(state: day17.ProgramState) -> Result(day17.ProgramState, ErrorType) 
 }
 
 pub fn run_program(state: day17.ProgramState) -> day17.ProgramState {
+  // echo state
   case next(state) {
     Error(_) -> state
     Ok(next_state) -> run_program(next_state)
@@ -99,8 +100,8 @@ pub fn run_program(state: day17.ProgramState) -> day17.ProgramState {
 }
 
 pub fn solve(input: Input) -> Output {
-  use input <- result.try(input)
-  let final_state = run_program(input)
+  use initial_state <- result.try(input)
+  let final_state = run_program(initial_state)
   let result =
     final_state.output
     |> list.reverse
@@ -110,5 +111,5 @@ pub fn solve(input: Input) -> Output {
 }
 
 pub fn main() -> Output {
-  day17.input_path |> parse.read_input |> solve |> echo
+  day17.input_path |> parse.read_input |> echo |> solve |> echo
 }

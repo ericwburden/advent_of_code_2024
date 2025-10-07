@@ -1,4 +1,6 @@
 import gleam/dict
+import gleam/int
+import gleam/list
 
 pub type RegisterName {
   A
