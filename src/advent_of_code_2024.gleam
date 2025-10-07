@@ -17,6 +17,7 @@ import day14/run as day14_run
 import day15/run as day15_run
 import day16/run as day16_run
 import day17/run as day17_run
+import day18/run as day18_run
 
 pub fn main() {
   day01_run.main()
@@ -36,4 +37,5 @@ pub fn main() {
   day15_run.main()
   day16_run.main()
   day17_run.main()
+  day18_run.main()
 }
