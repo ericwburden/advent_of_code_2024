@@ -118,8 +118,8 @@ pub const part2_expected = 0
 pub fn main() {
   let input = parse.read_input(${DAYSTR}.input_path)
   runner.run_day(${DAY}, input, [
-    #("Part 1", part1_expected, part1.solve),
-    #("Part 2", part2_expected, part2.solve),
+    runner.int_part("Part 1", part1_expected, part1.solve),
+    runner.int_part("Part 2", part2_expected, part2.solve),
   ])
 }
 EOL
