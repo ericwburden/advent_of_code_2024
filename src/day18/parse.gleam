@@ -10,7 +10,9 @@ import simplifile
 /// panicking on bad input.
 fn parse_number(text: String) -> Result(Int, String) {
   case int.parse(text) {
+    // Parsed successfully, so forward the numeric value.
     Ok(value) -> Ok(value)
+    // Parsing failed; surface a descriptive error message.
     Error(_) -> Error("Could not parse an Int from: " <> text)
   }
 }
@@ -22,11 +24,13 @@ fn parse_coordinate(line: String) -> Result(grid2d.Index2D, String) {
   let error_message = "Could not parse coordinate line: " <> trimmed
 
   case string.split(trimmed, on: ",") {
+    // Exactly two components; parse them as column and row.
     [col_text, row_text] -> {
       use col <- result.try(parse_number(string.trim(col_text)))
       use row <- result.try(parse_number(string.trim(row_text)))
       Ok(grid2d.Index2D(row: row, col: col))
     }
+    // Any other shape indicates malformed input.
     _ -> Error(error_message)
   }
 }
@@ -41,6 +45,9 @@ fn parse_contents(contents: String) -> Result(List(grid2d.Index2D), String) {
   |> result.all
 }
 
+/// Read and parse the Day 18 input file from disk. Each line from the input
+/// file is parsed into an [Index2D] that corresponds to the X,Y coordinate
+/// given by that line. 
 pub fn read_input(input_path) -> Input {
   simplifile.read(input_path)
   |> result.map(string.trim)
@@ -48,6 +55,7 @@ pub fn read_input(input_path) -> Input {
   |> result.try(parse_contents)
 }
 
+/// Small manual entry point used while developing the parser.
 pub fn main() {
   day18.example1_path |> read_input |> echo
 }

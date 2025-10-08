@@ -8,6 +8,7 @@ pub const part1_expected = 306
 
 pub const part2_expected = "38,63"
 
+/// Hook the Day 18 solvers into the shared runner harness.
 pub fn main() {
   let input = parse.read_input(day18.input_path)
   let part1_solve = fn(input) { part1.solve(input, 70, 1024) }
