@@ -6,7 +6,7 @@ import day19/part2
 
 pub const part1_expected = 319
 
-pub const part2_expected = 0
+pub const part2_expected = 692_575_723_305_545
 
 pub fn main() {
   let input = parse.read_input(day19.input_path)
