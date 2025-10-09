@@ -11,51 +11,72 @@ import gleam/set
 /// Default configuration for part 1: a single two-step cheat must save
 /// at least one hundred steps to count.
 pub const default_cheat_distance = 2
+
 pub const default_savings_threshold = 100
 
+/// Look up adjacent passable tiles ('.', 'S', or 'E') from the given index.
+/// We rely on this helper in all safe navigation routines.
 fn passable_neighbors(
   grid: grid2d.Grid2D(Bool),
   index: grid2d.Index2D,
 ) -> List(grid2d.Index2D) {
   grid2d.cardinal_offsets
+  // Translate the index by each cardinal offset to find candidate neighbors.
   |> list.map(fn(offset) { grid2d.apply_offset(index, offset) })
+  // Keep only the cells that are present in the grid and marked as passable.
   |> list.filter(fn(candidate) {
     case dict.get(grid, candidate) {
+      // We can move through any tile that contains `True`.
       Ok(True) -> True
+      // Missing or False tiles are walls or out-of-bounds entries.
       _ -> False
     }
   })
 }
 
-fn bfs_distances(
+/// Perform a breadth-first search that records the shortest number of safe
+/// steps from the origin to every reachable passable tile. The result acts as a
+/// lookup table for both the start-to-cheat and cheat-to-goal distances.
+fn bfs_scan(
   grid: grid2d.Grid2D(Bool),
   origin: grid2d.Index2D,
-) -> dict.Dict(grid2d.Index2D, Int) {
+) -> grid2d.Grid2D(Int) {
   let initial_queue = deque.new() |> deque.push_back(origin)
   let initial_distances = dict.from_list([#(origin, 0)])
   let initial_visited = set.from_list([origin])
-  bfs_loop(grid, initial_queue, initial_distances, initial_visited)
+  bfs_scan_go(grid, initial_queue, initial_distances, initial_visited)
 }
 
-fn bfs_loop(
+/// Tail-recursive worker that consumes the BFS queue, updating the distances
+/// map each time a new tile is discovered. We continue until the queue is
+/// empty, which means every reachable tile has been processed.
+fn bfs_scan_go(
   grid: grid2d.Grid2D(Bool),
   queue: deque.Deque(grid2d.Index2D),
   distances: dict.Dict(grid2d.Index2D, Int),
   visited: set.Set(grid2d.Index2D),
-) -> dict.Dict(grid2d.Index2D, Int) {
+) -> grid2d.Grid2D(Int) {
   case deque.pop_front(queue) {
+    // Queue exhausted: every reachable tile has been recorded.
     Error(Nil) -> distances
 
     Ok(#(current, rest_queue)) -> {
+      // We can count on this to be safe, since we initialized distances to
+      // contain an entry for every index in the original grid in the 
+      // `bfs_scan` initialization. This assumption could break if that
+      // invariant is changed, though.
       let assert Ok(current_distance) = dict.get(distances, current)
 
-      let fresh_neighbors =
+      // Get all the neighbors that are passable and not yet visited.
+      let neighbors =
         passable_neighbors(grid, current)
         |> list.filter(fn(candidate) { !set.contains(visited, candidate) })
 
+      // Update the search queue, distance map, and set of seen indices for
+      // each neighbor.
       let #(next_queue, next_distances, next_seen) =
         list.fold(
-          fresh_neighbors,
+          neighbors,
           #(rest_queue, distances, visited),
           fn(acc, neighbor) {
             let #(acc_queue, acc_distances, acc_seen) = acc
@@ -67,11 +88,14 @@ fn bfs_loop(
           },
         )
 
-      bfs_loop(grid, next_queue, next_distances, next_seen)
+      // Keep recursing
+      bfs_scan_go(grid, next_queue, next_distances, next_seen)
     }
   }
 }
 
+/// Evaluate every potential cheat landing spot around the origin, yielding the
+/// destination index and the number of cheat steps required to get there.
 fn cheat_targets(
   grid: grid2d.Grid2D(Bool),
   origin: grid2d.Index2D,
@@ -85,12 +109,15 @@ fn cheat_targets(
     let candidate = grid2d.Index2D(row + row_delta, col + col_delta)
 
     case dict.get(grid, candidate) {
+      // Only keep landings that are already passable tiles.
       Ok(True) -> Ok(#(candidate, cheat_cost))
       _ -> Error(Nil)
     }
   })
 }
 
+/// Precompute every offset within the cheat radius, paired with its Manhattan
+/// distance so callers can subtract cheat steps without recomputing it.
 fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
   list.range(-max_hops, max_hops)
   |> list.flat_map(fn(row_delta) {
@@ -119,9 +146,11 @@ fn count_cheat_paths_by_cost(
   |> list.fold(dict.new(), fn(acc, entry) {
     let #(cheat_entry, steps_to_entry) = entry
     case dict.get(distances_to_goal, cheat_entry) {
+      // Ignore tiles that cannot reach the exit without cheating.
       Error(Nil) -> acc
       Ok(steps_from_entry) ->
         case on_shortest_path(steps_to_entry, steps_from_entry, fair_steps) {
+          // Only the tiles on a fair shortest path can meaningfully shorten it.
           False -> acc
           True ->
             cheat_targets(grid, cheat_entry, max_cheat_steps)
@@ -136,18 +165,23 @@ fn count_cheat_paths_by_cost(
                   let on_path =
                     on_shortest_path(steps_to_exit, steps_from_exit, fair_steps)
                   case on_path && steps_to_exit > steps_to_entry {
+                    // Either the exit is not on a shortest path, or the shortcut
+                    // would walk backwards, in which case there is no benefit.
                     False -> acc_inner
                     True -> {
                       let candidate_steps =
                         steps_to_entry + cheat_cost + steps_from_exit
 
                       case fair_steps - candidate_steps >= threshold {
+                        // Shortcut beats the threshold; record the number of cheat steps used.
                         True -> record_shortcut(acc_inner, cheat_cost)
+                        // Fails to meet the save requirement; discard it.
                         False -> acc_inner
                       }
                     }
                   }
                 }
+                // This landing spot cannot complete the fair path; ignore it.
                 _, _ -> acc_inner
               }
             })
@@ -156,10 +190,14 @@ fn count_cheat_paths_by_cost(
   })
 }
 
+/// Helper to test whether a tile lies along any fair shortest path by comparing
+/// the prefix distance from the start and suffix distance to the goal.
 fn on_shortest_path(steps_to: Int, steps_from: Int, fair_steps: Int) -> Bool {
   steps_to + steps_from == fair_steps
 }
 
+/// Increment the number of shortcuts that consume a particular number of cheat
+/// steps, creating the counter if this is the first time we've seen it.
 fn record_shortcut(
   counts: dict.Dict(Int, Int),
   cheat_cost: Int,
@@ -170,24 +208,33 @@ fn record_shortcut(
   dict.insert(counts, cheat_cost, existing + 1)
 }
 
+/// Entry point for part 1. The solver receives the already parsed input along
+/// with configurable cheat settings and returns how many shortcuts qualify.
 pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   use valid_input <- result.try(input)
   let ValidatedInput(grid, start, end) = valid_input
 
-  let distances_from_start = bfs_distances(grid, start)
+  // Generate the minimum number of steps to each tile in the grid from the
+  // start with cheats turned off. This mapping will also give us the shortest,
+  // non-cheating path to the end for comparison to paths with cheats
+  // allowed.
+  let distances_from_start = bfs_scan(grid, start)
   let try_fair_steps =
     dict.get(distances_from_start, end)
     |> result.map_error(fn(_) { "Could not find a fair path through the grid" })
-  use fair_steps <- result.try(try_fair_steps)
+  use shortest_fair_path <- result.try(try_fair_steps)
 
-  let distances_to_goal = bfs_distances(grid, end)
+  // Generate another map of the minimum distance from the goal to each
+  // passable tile in the grid. Essentially walks the grid backwards and
+  // finds the shortest path to each tile, with cheats turned off.
+  let distances_to_goal = bfs_scan(grid, end)
 
   let cheat_counts =
     count_cheat_paths_by_cost(
       grid,
       distances_from_start,
       distances_to_goal,
-      fair_steps,
+      shortest_fair_path,
       cheat_steps,
       threshold,
     )
@@ -203,6 +250,8 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   Ok(qualifying)
 }
 
+/// Convenience executable that runs the solver with the puzzle's default
+/// configuration against the full input.
 pub fn main() -> Output {
   day20.input_path
   |> parse.read_input
