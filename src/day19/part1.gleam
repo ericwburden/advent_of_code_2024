@@ -17,11 +17,11 @@ fn can_compose_arrangement(towels: List(String), arrangement: String) -> Bool {
 
 /// Step 1 of the recursive depth-first search. The `memo` dictionary contains
 /// a list of prefixes tried and whether or not that prefix has already been
-/// evaluated to be a part of the total arrangment. This handles situations
+/// evaluated to be a part of the total arrangement. This handles situations
 /// like:
 /// 
 ///   - towels = ["ab", "a", "b"]
-///   - arrangment = "abab"
+///   - arrangement = "abab"
 /// 
 /// In this case, "ab" is tried first and the recursive algorithm tries every
 /// combination that is prefixed with "ab". Thus, when "a" then "b" are tried
@@ -40,8 +40,8 @@ fn can_compose_arrangement_go_step1(
 
 /// Step 2 of the recursive depth-first search. This step checks the remaining
 /// parts of the arrangement (the full arrangement on the first layer, the 
-/// remainder of the arrangment minus the tested prefix on subsequent layers).
-/// If the remaining arrangment is empty, that means we've totally matched that
+/// remainder of the arrangement minus the tested prefix on subsequent layers).
+/// If the remaining arrangement is empty, that means we've totally matched that
 /// string and we can end the search with a success.
 fn can_compose_arrangement_go_step2(
   towels: List(String),
@@ -54,11 +54,11 @@ fn can_compose_arrangement_go_step2(
     // reporting success.
     "" -> #(True, memo)
 
-    // Otherwise, test every towel prefix against the remaining arrangment for
+    // Otherwise, test every towel prefix against the remaining arrangement for
     // matches.
     _ -> {
       let #(success, next_memo) =
-        can_compose_arrangment_go_step3(towels, arrangement, memo)
+        can_compose_arrangement_go_step3(towels, arrangement, memo)
       let final_memo = dict.insert(next_memo, arrangement, success)
       #(success, final_memo)
     }
@@ -67,10 +67,10 @@ fn can_compose_arrangement_go_step2(
 
 /// Step 3 of the recursive depth-first search. In this step, we try every
 /// towel to see if it has been found to be on the path to successfully 
-/// filling out the remaining `arrangment`. If we can tell from the `memo`
-/// that we can finish the arrangment with that prefix, we can short-circuit
+/// filling out the remaining `arrangement`. If we can tell from the `memo`
+/// that we can finish the arrangement with that prefix, we can short-circuit
 /// with a positive result.
-fn can_compose_arrangment_go_step3(
+fn can_compose_arrangement_go_step3(
   towels: List(String),
   arrangement: String,
   memo: dict.Dict(String, Bool),
@@ -78,11 +78,11 @@ fn can_compose_arrangment_go_step3(
   list.fold(towels, #(False, memo), fn(acc, towel) {
     case acc {
       // Bail out early once a prefix has been found that we know can be used
-      // to successfully fill out the arrangment.
+      // to successfully fill out the arrangement.
       #(True, current_memo) -> #(True, current_memo)
       // Keep searching with the remaining towels.
       #(False, current_memo) ->
-        can_compose_arrangment_go_step4(
+        can_compose_arrangement_go_step4(
           towels,
           arrangement,
           towel,
@@ -94,11 +94,11 @@ fn can_compose_arrangment_go_step3(
 
 /// Step 4, the final step of the depth-first recursive search. This step
 /// performs the individual checks from Step 3. If the `towel` being checked
-/// isn't actually a prefix for the remaining `arrangment`, then we already
-/// know it can't contribute to the final arrangment and we can stop there and
+/// isn't actually a prefix for the remaining `arrangement`, then we already
+/// know it can't contribute to the final arrangement and we can stop there and
 /// move on to the next towel. Otherwise, we subtract that prefix from the 
-/// current arrangment and recurse on the rest of the arrangment.
-fn can_compose_arrangment_go_step4(
+/// current arrangement and recurse on the rest of the arrangement.
+fn can_compose_arrangement_go_step4(
   towels: List(String),
   arrangement: String,
   towel: String,
@@ -116,17 +116,17 @@ fn can_compose_arrangment_go_step4(
 }
 
 /// In Part 1, we check each towel `arrangement` to see if it can be composed
-/// from the collection of `towels`. We report the number of arrangments that
+/// from the collection of `towels`. We report the number of arrangements that
 /// can be composed.
 pub fn solve(input: Input) -> Output {
   use #(towels, arrangements) <- result.try(input)
 
-  let arrangment_is_possible = fn(arrangement) {
+  let arrangement_is_possible = fn(arrangement) {
     can_compose_arrangement(towels, arrangement)
   }
 
   arrangements
-  |> list.filter(arrangment_is_possible)
+  |> list.filter(arrangement_is_possible)
   |> list.length
   |> Ok
 }
