@@ -7,13 +7,12 @@ import gleam/list
 import gleam/result
 import gleam/set
 
-/// Maximum number of steps we may travel while "cheating" straight through
-/// walls. This mirrors the puzzle's allowance for phase-walking shortcuts.
-pub const cheat_distance = 2
+/// Default number of steps we may travel while "cheating" straight through
+/// walls. This mirrors the allowance for part 1 of the puzzle.
+pub const default_cheat_distance = 2
 
-/// Shortcuts only count when they beat the ordinary path by at least this
-/// many steps.
-pub const savings_threshold = 100
+/// Default minimum improvement required for a shortcut to count.
+pub const default_savings_threshold = 100
 
 /// Lightweight absolute value helper – Gleam's core `int` module does not ship
 /// with one, and writing it out keeps the rest of the code tidy.
@@ -123,19 +122,19 @@ fn cheat_targets(
   })
 }
 
-/// Count the number of cheat-enabled paths that improve on the fair route by
-/// at least the configured threshold. The two distance maps come from running
-/// BFS without cheating from both the start and end positions.
-fn count_cheat_paths(
+/// Count cheat-enabled paths grouped by the number of cheat steps required.
+/// Each entry in the returned dictionary maps a cheat distance to the number of
+/// distinct shortcuts that save at least `threshold` steps versus the fair path.
+fn count_cheat_paths_by_cost(
   grid: grid2d.Grid2D(Bool),
   distances_from_start: dict.Dict(grid2d.Index2D, Int),
   distances_to_goal: dict.Dict(grid2d.Index2D, Int),
   fair_steps: Int,
   max_cheat_steps: Int,
   threshold: Int,
-) -> Int {
+) -> dict.Dict(Int, Int) {
   dict.to_list(distances_from_start)
-  |> list.fold(0, fn(acc, entry) {
+  |> list.fold(dict.new(), fn(acc, entry) {
     let #(cheat_entry, steps_to_entry) = entry
     // Only consider starting points that lie on at least one shortest path; if
     // taking the fair path to this tile plus finishing the fair path from it
@@ -158,7 +157,12 @@ fn count_cheat_paths(
               // line; if the net savings meets the threshold we count it.
               let candidate_steps = steps_to_entry + cheat_cost + steps_from_exit
               case fair_steps - candidate_steps >= threshold {
-                True -> acc_inner + 1
+                True -> {
+                  let existing =
+                    dict.get(acc_inner, cheat_cost)
+                    |> result.unwrap(0)
+                  dict.insert(acc_inner, cheat_cost, existing + 1)
+                }
                 False -> acc_inner
               }
             }
@@ -171,7 +175,20 @@ fn count_cheat_paths(
   })
 }
 
-pub fn solve(input: Input) -> Output {
+/// Sum the counts of every cheat that consumes at most `max_steps`.
+fn sum_cheats_up_to(
+  counts: dict.Dict(Int, Int),
+  max_steps: Int,
+) -> Int {
+  dict.fold(counts, 0, fn(acc, cheat_cost, amount) {
+    case cheat_cost <= max_steps {
+      True -> acc + amount
+      False -> acc
+    }
+  })
+}
+
+pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   // Parse the raw text and bail quickly if the file could not be read.
   use valid_input <- result.try(input)
   let ValidatedInput(grid, start, end) = valid_input
@@ -188,20 +205,27 @@ pub fn solve(input: Input) -> Output {
   // cheat segment ends.
   let distances_to_goal = bfs_distances(grid, end)
 
-  // Count every cheat that saves at least the configured number of steps.
-  let qualifying =
-    count_cheat_paths(
+  // Count every cheat that saves at least the configured number of steps,
+  // grouped by the number of cheating steps required.
+  let cheat_counts =
+    count_cheat_paths_by_cost(
       grid,
       distances_from_start,
       distances_to_goal,
       fair_steps,
-      cheat_distance,
-      savings_threshold,
+      cheat_steps,
+      threshold,
     )
+
+  // Collapse the grouped counts so the public API still reports the aggregate.
+  let qualifying = sum_cheats_up_to(cheat_counts, cheat_steps)
 
   Ok(qualifying)
 }
 
 pub fn main() -> Output {
-  day20.input_path |> parse.read_input |> solve |> echo
+  day20.input_path
+  |> parse.read_input
+  |> solve(default_cheat_distance, default_savings_threshold)
+  |> echo
 }
