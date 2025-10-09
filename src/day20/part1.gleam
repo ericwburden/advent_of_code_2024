@@ -49,7 +49,12 @@ fn bfs_distances(
   let initial_queue = deque.new() |> deque.push_back(origin)
   let initial_distances = dict.from_list([#(origin, 0)])
   let initial_visited = set.from_list([origin])
-  bfs_loop(grid, deque.pop_front(initial_queue), initial_distances, initial_visited)
+  bfs_loop(
+    grid,
+    deque.pop_front(initial_queue),
+    initial_distances,
+    initial_visited,
+  )
 }
 
 /// Tail-recursive worker for the BFS above: repeatedly pop the next cell, store
@@ -141,21 +146,27 @@ fn count_cheat_paths_by_cost(
     // exceeds the best-known cost, it cannot contribute to a useful cheat.
     case dict.get(distances_to_goal, cheat_entry) {
       Error(Nil) -> acc
-      Ok(steps_from_entry) if steps_to_entry + steps_from_entry != fair_steps -> acc
+      Ok(steps_from_entry) if steps_to_entry + steps_from_entry != fair_steps ->
+        acc
       Ok(_) ->
         cheat_targets(grid, cheat_entry, max_cheat_steps)
         |> list.fold(acc, fn(acc_inner, target) {
           let #(cheat_exit, cheat_cost) = target
 
-          case dict.get(distances_from_start, cheat_exit), dict.get(distances_to_goal, cheat_exit) {
+          case
+            dict.get(distances_from_start, cheat_exit),
+            dict.get(distances_to_goal, cheat_exit)
+          {
             Ok(steps_to_exit), Ok(steps_from_exit)
-              if steps_to_exit + steps_from_exit == fair_steps &&
-                 steps_to_exit > steps_to_entry -> {
+              if steps_to_exit + steps_from_exit == fair_steps
+              && steps_to_exit > steps_to_entry
+            -> {
               // Skipping the fair path segment between `cheat_entry` and
               // `cheat_exit` saves `(steps_to_exit - steps_to_entry)` moves.
               // Spending `cheat_cost` jumps us through the wall in a straight
               // line; if the net savings meets the threshold we count it.
-              let candidate_steps = steps_to_entry + cheat_cost + steps_from_exit
+              let candidate_steps =
+                steps_to_entry + cheat_cost + steps_from_exit
               case fair_steps - candidate_steps >= threshold {
                 True -> {
                   let existing =
@@ -176,10 +187,7 @@ fn count_cheat_paths_by_cost(
 }
 
 /// Sum the counts of every cheat that consumes at most `max_steps`.
-fn sum_cheats_up_to(
-  counts: dict.Dict(Int, Int),
-  max_steps: Int,
-) -> Int {
+fn sum_cheats_up_to(counts: dict.Dict(Int, Int), max_steps: Int) -> Int {
   dict.fold(counts, 0, fn(acc, cheat_cost, amount) {
     case cheat_cost <= max_steps {
       True -> acc + amount
@@ -224,8 +232,8 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
 }
 
 pub fn main() -> Output {
-  day20.input_path
+  day20.example1_path
   |> parse.read_input
-  |> solve(default_cheat_distance, default_savings_threshold)
+  |> solve(2, 20)
   |> echo
 }
