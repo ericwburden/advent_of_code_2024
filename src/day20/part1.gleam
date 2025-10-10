@@ -137,116 +137,55 @@ fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
   })
 }
 
-/// Helper to test whether a tile lies along any fair shortest path by comparing
-/// the prefix distance from the start and suffix distance to the goal.
-fn on_shortest_path(steps_to: Int, steps_from: Int, fair_steps: Int) -> Bool {
-  steps_to + steps_from == fair_steps
-}
-
-/// Count how many shortcuts satisfy the savings threshold. The outer fold
-/// walks each candidate entry index; the inner fold checks every potential
-/// landing spot for that entry and increments the tally for every successful
-/// shortcut.
-fn count_worthwhile_cheats(
-  grid: grid2d.Grid2D(Bool),
+/// Combine the two one-sided distance maps into a single lookup that records
+/// both the steps from the start and the steps to the goal for every tile that
+/// is reachable from the start and can also reach the goal.
+fn calculate_pathing_distances(
   distances_from_start: dict.Dict(grid2d.Index2D, Int),
   distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-  shortest_fair_path: Int,
-  cheat_steps: Int,
-  threshold: Int,
-) -> Int {
-  dict.to_list(distances_from_start)
-  |> list.fold(0, fn(valid_cheat_count, entry) {
-    let #(cheat_start_idx, steps_to_entry) = entry
-
-    // Check to see if it's possible to initiate a worthwhile cheat (one that
-    // will save at least the threshold of steps) at the `cheat_start_idx`
-    case
-      worthwhile_cheat_starts_at(
-        cheat_start_idx,
-        steps_to_entry,
-        shortest_fair_path,
-        distances_to_goal,
-      )
-    {
-      // If not, just carry the accumulator forward
-      False -> valid_cheat_count
-
-      // If so, then we need to check the possible exit points for a cheat
-      // starting at `cheat_start_idx`. We'll count every exit point that 
-      // will save at least the threhshold of steps.
-      True ->
-        possible_cheat_exit_points(grid, cheat_start_idx, cheat_steps)
-        |> list.fold(valid_cheat_count, fn(inner_count, target) {
-          let #(cheat_end_idx, cheat_cost) = target
-
-          // For each proposed exit point, if a cheat ending at that point
-          // would save enough steps, count it.
-          case
-            worthwhile_cheat_ends_at(
-              cheat_end_idx,
-              steps_to_entry,
-              cheat_cost,
-              shortest_fair_path,
-              threshold,
-              distances_from_start,
-              distances_to_goal,
-            )
-          {
-            True -> inner_count + 1
-            False -> inner_count
-          }
-        })
+) -> dict.Dict(grid2d.Index2D, #(Int, Int)) {
+  dict.fold(distances_from_start, dict.new(), fn(acc, index, steps_to_start) {
+    case dict.get(distances_to_goal, index) {
+      Ok(steps_to_goal) ->
+        dict.insert(acc, index, #(steps_to_start, steps_to_goal))
+      Error(Nil) -> acc
     }
   })
 }
 
-/// Determine whether a possible cheat start tile could start a useful shortcut.
-/// A cheat may be worthwhile so long as it starts on one of the shortest paths
-/// to the goal.
-fn worthwhile_cheat_starts_at(
-  cheat_start_idx: grid2d.Index2D,
-  steps_to_entry: Int,
-  fair_steps: Int,
-  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-) -> Bool {
-  case dict.get(distances_to_goal, cheat_start_idx) {
-    Error(Nil) -> False
-    Ok(steps_from_entry) ->
-      on_shortest_path(steps_to_entry, steps_from_entry, fair_steps)
-  }
-}
-
-/// Determine whether the exit tile lies forward on the fair path and provides
-/// sufficient savings once the cheat is applied.
-fn worthwhile_cheat_ends_at(
-  cheat_exit: grid2d.Index2D,
-  steps_to_entry: Int,
-  cheat_cost: Int,
-  fair_steps: Int,
+/// Count how many shortcuts satisfy the savings threshold. The outer fold walks
+/// each candidate entry index; the inner fold checks every potential landing
+/// spot for that entry and increments the tally for every successful shortcut.
+fn count_worthwhile_cheats(
+  grid: grid2d.Grid2D(Bool),
+  distances: dict.Dict(grid2d.Index2D, #(Int, Int)),
+  shortest_fair_path: Int,
+  cheat_steps: Int,
   threshold: Int,
-  distances_from_start: dict.Dict(grid2d.Index2D, Int),
-  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-) -> Bool {
-  case
-    dict.get(distances_from_start, cheat_exit),
-    dict.get(distances_to_goal, cheat_exit)
-  {
-    Ok(steps_to_exit), Ok(steps_from_exit) -> {
-      let forward_on_path =
-        on_shortest_path(steps_to_exit, steps_from_exit, fair_steps)
-        && steps_to_exit > steps_to_entry
+) -> Int {
+  dict.to_list(distances)
+  |> list.fold(0, fn(valid_cheat_count, entry) {
+    let #(cheat_start_idx, #(steps_to_entry, _steps_from_entry)) = entry
 
-      case forward_on_path {
-        False -> False
-        True -> {
-          let candidate_steps = steps_to_entry + cheat_cost + steps_from_exit
-          fair_steps - candidate_steps >= threshold
+    possible_cheat_exit_points(grid, cheat_start_idx, cheat_steps)
+    |> list.fold(valid_cheat_count, fn(inner_count, target) {
+      let #(cheat_end_idx, cheat_cost) = target
+
+      case dict.get(distances, cheat_end_idx) {
+        Ok(#(steps_to_exit, steps_from_exit)) -> {
+          let forward_savings = steps_to_exit - steps_to_entry
+          let finish_savings =
+            steps_to_entry + cheat_cost + steps_from_exit - shortest_fair_path
+
+          case forward_savings > 0 && finish_savings <= -threshold {
+            True -> inner_count + 1
+            False -> inner_count
+          }
         }
+        Error(Nil) -> inner_count
       }
-    }
-    _, _ -> False
-  }
+    })
+  })
 }
 
 /// Entry point for part 1. The solver receives the already parsed input along
@@ -270,11 +209,16 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   // finds the shortest path to each tile, with cheats turned off.
   let distances_to_goal = bfs_scan(grid, end)
 
+  // Combine both distance maps so every reachable tile records how far it is
+  // from the start and how far it is from the goal. This lets us evaluate any
+  // how much time can be saved by any proposed shortcut.
+  let combined_distances =
+    calculate_pathing_distances(distances_from_start, distances_to_goal)
+
   let result =
     count_worthwhile_cheats(
       grid,
-      distances_from_start,
-      distances_to_goal,
+      combined_distances,
       shortest_fair_path,
       cheat_steps,
       threshold,
