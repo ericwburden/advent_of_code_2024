@@ -116,21 +116,24 @@ fn cheat_targets(
   })
 }
 
+/// Produce the cartesian product of two lists.
+fn cartesian_product(list1: List(a), list2: List(b)) -> List(#(a, b)) {
+  list.flat_map(list1, fn(el1) { list.map(list2, fn(el2) { #(el1, el2) }) })
+}
+
 /// Precompute every offset within the cheat radius, paired with its Manhattan
 /// distance so callers can subtract cheat steps without recomputing it.
 fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
-  list.range(-max_hops, max_hops)
-  |> list.flat_map(fn(row_delta) {
-    list.range(-max_hops, max_hops)
-    |> list.filter_map(fn(col_delta) {
-      let cheat_cost =
-        int.absolute_value(row_delta) + int.absolute_value(col_delta)
-
-      case cheat_cost > 0 && cheat_cost <= max_hops {
-        True -> Ok(#(row_delta, col_delta, cheat_cost))
-        False -> Error(Nil)
-      }
-    })
+  let deltas = list.range(-max_hops, max_hops)
+  cartesian_product(deltas, deltas)
+  |> list.filter_map(fn(row_col_offset) {
+    let #(row_offset, col_offset) = row_col_offset
+    let total_steps =
+      int.absolute_value(row_offset) + int.absolute_value(col_offset)
+    case total_steps > 0 && total_steps <= max_hops {
+      True -> Ok(#(row_offset, col_offset, total_steps))
+      False -> Error(Nil)
+    }
   })
 }
 
@@ -142,51 +145,20 @@ fn count_cheat_paths_by_cost(
   max_cheat_steps: Int,
   threshold: Int,
 ) -> dict.Dict(Int, Int) {
-  dict.to_list(distances_from_start)
-  |> list.fold(dict.new(), fn(acc, entry) {
-    let #(cheat_entry, steps_to_entry) = entry
-    case dict.get(distances_to_goal, cheat_entry) {
-      // Ignore tiles that cannot reach the exit without cheating.
-      Error(Nil) -> acc
-      Ok(steps_from_entry) ->
-        case on_shortest_path(steps_to_entry, steps_from_entry, fair_steps) {
-          // Only the tiles on a fair shortest path can meaningfully shorten it.
-          False -> acc
-          True ->
-            cheat_targets(grid, cheat_entry, max_cheat_steps)
-            |> list.fold(acc, fn(acc_inner, target) {
-              let #(cheat_exit, cheat_cost) = target
-
-              case
-                dict.get(distances_from_start, cheat_exit),
-                dict.get(distances_to_goal, cheat_exit)
-              {
-                Ok(steps_to_exit), Ok(steps_from_exit) -> {
-                  let on_path =
-                    on_shortest_path(steps_to_exit, steps_from_exit, fair_steps)
-                  case on_path && steps_to_exit > steps_to_entry {
-                    // Either the exit is not on a shortest path, or the shortcut
-                    // would walk backwards, in which case there is no benefit.
-                    False -> acc_inner
-                    True -> {
-                      let candidate_steps =
-                        steps_to_entry + cheat_cost + steps_from_exit
-
-                      case fair_steps - candidate_steps >= threshold {
-                        // Shortcut beats the threshold; record the number of cheat steps used.
-                        True -> record_shortcut(acc_inner, cheat_cost)
-                        // Fails to meet the save requirement; discard it.
-                        False -> acc_inner
-                      }
-                    }
-                  }
-                }
-                // This landing spot cannot complete the fair path; ignore it.
-                _, _ -> acc_inner
-              }
-            })
-        }
-    }
+  let collected_cheat_path_costs =
+    collect_cheat_costs(
+      grid,
+      distances_from_start,
+      distances_to_goal,
+      fair_steps,
+      max_cheat_steps,
+      threshold,
+    )
+  list.fold(collected_cheat_path_costs, dict.new(), fn(acc, cheat_cost) {
+    let existing =
+      dict.get(acc, cheat_cost)
+      |> result.unwrap(0)
+    dict.insert(acc, cheat_cost, existing + 1)
   })
 }
 
@@ -196,16 +168,100 @@ fn on_shortest_path(steps_to: Int, steps_from: Int, fair_steps: Int) -> Bool {
   steps_to + steps_from == fair_steps
 }
 
-/// Increment the number of shortcuts that consume a particular number of cheat
-/// steps, creating the counter if this is the first time we've seen it.
-fn record_shortcut(
-  counts: dict.Dict(Int, Int),
+/// Gather the cheat step counts for every shortcut that satisfies the savings
+/// threshold. The outer fold walks each candidate entry index; the inner fold
+/// checks every potential landing spot for that entry and appends the cheat
+/// cost when all conditions are satisfied.
+fn collect_cheat_costs(
+  grid: grid2d.Grid2D(Bool),
+  distances_from_start: dict.Dict(grid2d.Index2D, Int),
+  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
+  fair_steps: Int,
+  max_cheat_steps: Int,
+  threshold: Int,
+) -> List(Int) {
+  dict.to_list(distances_from_start)
+  |> list.fold([], fn(acc, entry) {
+    let #(cheat_entry, steps_to_entry) = entry
+
+    case
+      valid_cheat_entry(
+        steps_to_entry,
+        cheat_entry,
+        fair_steps,
+        distances_to_goal,
+      )
+    {
+      False -> acc
+      True ->
+        cheat_targets(grid, cheat_entry, max_cheat_steps)
+        |> list.fold(acc, fn(acc_inner, target) {
+          let #(cheat_exit, cheat_cost) = target
+
+          case
+            valid_cheat_exit(
+              steps_to_entry,
+              cheat_exit,
+              cheat_cost,
+              fair_steps,
+              threshold,
+              distances_from_start,
+              distances_to_goal,
+            )
+          {
+            True -> [cheat_cost, ..acc_inner]
+            False -> acc_inner
+          }
+        })
+    }
+  })
+  |> list.reverse
+}
+
+/// Determine whether a candidate entry tile could start a useful shortcut.
+fn valid_cheat_entry(
+  steps_to_entry: Int,
+  cheat_entry: grid2d.Index2D,
+  fair_steps: Int,
+  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
+) -> Bool {
+  case dict.get(distances_to_goal, cheat_entry) {
+    Error(Nil) -> False
+    Ok(steps_from_entry) ->
+      on_shortest_path(steps_to_entry, steps_from_entry, fair_steps)
+  }
+}
+
+/// Determine whether the exit tile lies forward on the fair path and provides
+/// sufficient savings once the cheat is applied.
+fn valid_cheat_exit(
+  steps_to_entry: Int,
+  cheat_exit: grid2d.Index2D,
   cheat_cost: Int,
-) -> dict.Dict(Int, Int) {
-  let existing =
-    dict.get(counts, cheat_cost)
-    |> result.unwrap(0)
-  dict.insert(counts, cheat_cost, existing + 1)
+  fair_steps: Int,
+  threshold: Int,
+  distances_from_start: dict.Dict(grid2d.Index2D, Int),
+  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
+) -> Bool {
+  case
+    dict.get(distances_from_start, cheat_exit),
+    dict.get(distances_to_goal, cheat_exit)
+  {
+    Ok(steps_to_exit), Ok(steps_from_exit) -> {
+      let forward_on_path =
+        on_shortest_path(steps_to_exit, steps_from_exit, fair_steps)
+        && steps_to_exit > steps_to_entry
+
+      case forward_on_path {
+        False -> False
+        True -> {
+          let candidate_steps = steps_to_entry + cheat_cost + steps_from_exit
+          fair_steps - candidate_steps >= threshold
+        }
+      }
+    }
+    _, _ -> False
+  }
 }
 
 /// Entry point for part 1. The solver receives the already parsed input along
