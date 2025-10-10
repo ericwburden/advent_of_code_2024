@@ -94,28 +94,6 @@ fn bfs_scan_go(
   }
 }
 
-/// Evaluate every potential cheat landing spot around the origin, yielding the
-/// destination index and the number of cheat steps required to get there.
-fn possible_cheat_exit_points(
-  grid: grid2d.Grid2D(Bool),
-  origin: grid2d.Index2D,
-  max_hops: Int,
-) -> List(#(grid2d.Index2D, Int)) {
-  let grid2d.Index2D(row, col) = origin
-
-  cheat_offsets(max_hops)
-  |> list.filter_map(fn(offset) {
-    let #(row_delta, col_delta, cheat_cost) = offset
-    let candidate = grid2d.Index2D(row + row_delta, col + col_delta)
-
-    case dict.get(grid, candidate) {
-      // Only keep landings that are already passable tiles.
-      Ok(True) -> Ok(#(candidate, cheat_cost))
-      _ -> Error(Nil)
-    }
-  })
-}
-
 /// Produce the cartesian product of two lists.
 fn cartesian_product(list1: List(a), list2: List(b)) -> List(#(a, b)) {
   list.flat_map(list1, fn(el1) { list.map(list2, fn(el2) { #(el1, el2) }) })
@@ -123,14 +101,14 @@ fn cartesian_product(list1: List(a), list2: List(b)) -> List(#(a, b)) {
 
 /// Precompute every offset within the cheat radius, paired with its Manhattan
 /// distance so callers can subtract cheat steps without recomputing it.
-fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
-  let deltas = list.range(-max_hops, max_hops)
+fn cheat_offsets(cheat_steps: Int) -> List(#(Int, Int, Int)) {
+  let deltas = list.range(-cheat_steps, cheat_steps)
   cartesian_product(deltas, deltas)
   |> list.filter_map(fn(row_col_offset) {
     let #(row_offset, col_offset) = row_col_offset
     let total_steps =
       int.absolute_value(row_offset) + int.absolute_value(col_offset)
-    case total_steps > 0 && total_steps <= max_hops {
+    case total_steps > 0 && total_steps <= cheat_steps {
       True -> Ok(#(row_offset, col_offset, total_steps))
       False -> Error(Nil)
     }
@@ -140,56 +118,111 @@ fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
 /// Combine the two one-sided distance maps into a single lookup that records
 /// both the steps from the start and the steps to the goal for every tile that
 /// is reachable from the start and can also reach the goal.
-fn calculate_pathing_distances(
+fn annotate_grid_with_step_counts(
+  grid: grid2d.Grid2D(Bool),
   distances_from_start: dict.Dict(grid2d.Index2D, Int),
-  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-) -> dict.Dict(grid2d.Index2D, #(Int, Int)) {
-  dict.fold(distances_from_start, dict.new(), fn(acc, index, steps_to_start) {
-    case dict.get(distances_to_goal, index) {
-      Ok(steps_to_goal) ->
-        dict.insert(acc, index, #(steps_to_start, steps_to_goal))
+  distances_to_exit: dict.Dict(grid2d.Index2D, Int),
+) -> dict.Dict(grid2d.Index2D, #(Bool, Int, Int)) {
+  dict.fold(distances_from_start, dict.new(), fn(acc, index, steps_from_start) {
+    case dict.get(distances_to_exit, index) {
+      Ok(steps_to_exit) -> {
+        let assert Ok(is_passable) = dict.get(grid, index)
+        dict.insert(acc, index, #(is_passable, steps_from_start, steps_to_exit))
+      }
       Error(Nil) -> acc
     }
   })
 }
 
-/// Count how many shortcuts satisfy the savings threshold. The outer fold walks
-/// each candidate entry index; the inner fold checks every potential landing
-/// spot for that entry and increments the tally for every successful shortcut.
+/// Count how many shortcuts satisfy the savings threshold. The outer fold 
+/// walks each index in the grid and checks each passable tile to see if it can 
+/// be the starting point for a cheat of up to `cheat_steps` steps that can
+/// save at leeast `threshold` steps off the shortest non-cheat path through
+/// the grid.
 fn count_worthwhile_cheats(
-  grid: grid2d.Grid2D(Bool),
-  distances: dict.Dict(grid2d.Index2D, #(Int, Int)),
+  grid_annotated: dict.Dict(grid2d.Index2D, #(Bool, Int, Int)),
   shortest_fair_path: Int,
   cheat_steps: Int,
   threshold: Int,
 ) -> Int {
-  dict.to_list(distances)
-  |> list.fold(0, fn(valid_cheat_count, entry) {
-    let #(cheat_start_idx, #(steps_to_entry, _steps_from_entry)) = entry
+  // A list of all the offsets in a Manhattan radius of `cheat_steps` from
+  // the origin. Used to find the indices where a cheat could potentially
+  // end.
+  let offsets = cheat_offsets(cheat_steps)
 
-    possible_cheat_exit_points(grid, cheat_start_idx, cheat_steps)
-    |> list.fold(valid_cheat_count, fn(inner_count, target) {
-      let #(cheat_end_idx, cheat_cost) = target
+  dict.fold(grid_annotated, 0, fn(valid_cheat_count, cheat_start_idx, idx_info) {
+    let #(is_passable, steps_from_start, _) = idx_info
 
-      case dict.get(distances, cheat_end_idx) {
-        Ok(#(steps_to_exit, steps_from_exit)) -> {
-          let forward_savings = steps_to_exit - steps_to_entry
-          let finish_savings =
-            steps_to_entry + cheat_cost + steps_from_exit - shortest_fair_path
+    case is_passable {
+      // Cheats can't start at an impassable tile, so skip checking those.
+      False -> valid_cheat_count
 
-          case forward_savings > 0 && finish_savings <= -threshold {
-            True -> inner_count + 1
-            False -> inner_count
-          }
-        }
-        Error(Nil) -> inner_count
+      // For each tile that could potentially be the starting point for a
+      // cheat (i.e., every normally passable tile), count the number of 
+      // points on the grid where the cheat could end *and* save at least the
+      // `threshold` of steps.
+      True -> {
+        let qualifying_cheats =
+          count_worthwhile_cheat_exits(
+            cheat_start_idx,
+            grid_annotated,
+            steps_from_start,
+            offsets,
+            shortest_fair_path,
+            threshold,
+          )
+        valid_cheat_count + qualifying_cheats
       }
-    })
+    }
   })
 }
 
-/// Entry point for part 1. The solver receives the already parsed input along
-/// with configurable cheat settings and returns how many shortcuts qualify.
+/// Given a starting tile, count every landing tile that would produce a
+/// shortcut meeting the savings requirement. According to the puzzle text,
+/// it doesn't matter what path the robot takes while cheating, a cheat is
+/// counted only once for each unique start/end coordinate pair.
+fn count_worthwhile_cheat_exits(
+  cheat_start_idx: grid2d.Index2D,
+  grid_annotated: dict.Dict(grid2d.Index2D, #(Bool, Int, Int)),
+  steps_from_start: Int,
+  offsets: List(#(Int, Int, Int)),
+  shortest_fair_path: Int,
+  threshold: Int,
+) -> Int {
+  let grid2d.Index2D(row, col) = cheat_start_idx
+
+  // For every reachable offset from the starting index...
+  list.fold(offsets, 0, fn(acc, offset) {
+    let #(row_delta, col_delta, cheat_cost) = offset
+    let cheat_end_idx = grid2d.Index2D(row + row_delta, col + col_delta)
+
+    // Check the tile information at that reachable offset.
+    case dict.get(grid_annotated, cheat_end_idx) {
+      // Impassable tiles can't be the end point for a cheat, skip that one.
+      // Same for any index that points off the grid.
+      Ok(#(False, _, _)) | Error(_) -> acc
+
+      // Any exit point that would result in a path that saves at least
+      // `threshold` steps gets counted.
+      Ok(#(True, _steps_from_start, steps_to_exit)) -> {
+        let new_path_length = steps_from_start + cheat_cost + steps_to_exit
+        let saved_steps = shortest_fair_path - new_path_length
+        case saved_steps >= threshold {
+          True -> acc + 1
+          False -> acc
+        }
+      }
+    }
+  })
+}
+
+/// Part 1 of today's puzzle asks us to participate in a race with cheat codes!
+/// Granted, it's not really cheating, since everyone is doing it and there are
+/// rules about it, but it's more fun to call it a cheat, so that's what we're
+/// doing. We'll start by analyzing the grid and the path to the goal with 
+/// collisions turned on, then start checking for opportunities to cheat by
+/// walking through walls. Counts every opportunity to save enough time by
+/// doing so.
 pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   use valid_input <- result.try(input)
   let ValidatedInput(grid, start, end) = valid_input
@@ -207,18 +240,22 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   // Generate another map of the minimum distance from the goal to each
   // passable tile in the grid. Essentially walks the grid backwards and
   // finds the shortest path to each tile, with cheats turned off.
-  let distances_to_goal = bfs_scan(grid, end)
+  let distances_to_exit = bfs_scan(grid, end)
 
-  // Combine both distance maps so every reachable tile records how far it is
-  // from the start and how far it is from the goal. This lets us evaluate any
-  // how much time can be saved by any proposed shortcut.
-  let combined_distances =
-    calculate_pathing_distances(distances_from_start, distances_to_goal)
+  // Combine both distance maps and the original grid so that every index now
+  // indicates whether it is passable, the number of steps away from the start
+  // it is on the way to the goal, and the number of steps left until the
+  // goal. 
+  let grid_with_steps_annotated =
+    annotate_grid_with_step_counts(
+      grid,
+      distances_from_start,
+      distances_to_exit,
+    )
 
   let result =
     count_worthwhile_cheats(
-      grid,
-      combined_distances,
+      grid_with_steps_annotated,
       shortest_fair_path,
       cheat_steps,
       threshold,

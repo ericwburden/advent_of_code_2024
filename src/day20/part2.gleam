@@ -4,6 +4,7 @@ import day20/part1
 
 /// Configuration for part 2: the single cheat burst may span up to twenty steps.
 pub const cheat_distance = 20
+
 pub const savings_threshold = part1.default_savings_threshold
 
 /// Part 2 reuses the part 1 solver, supplying the puzzle-specific limits.
