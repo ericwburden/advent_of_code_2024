@@ -96,7 +96,7 @@ fn bfs_scan_go(
 
 /// Evaluate every potential cheat landing spot around the origin, yielding the
 /// destination index and the number of cheat steps required to get there.
-fn cheat_targets(
+fn possible_cheat_exit_points(
   grid: grid2d.Grid2D(Bool),
   origin: grid2d.Index2D,
   max_hops: Int,
@@ -137,95 +137,80 @@ fn cheat_offsets(max_hops: Int) -> List(#(Int, Int, Int)) {
   })
 }
 
-fn count_cheat_paths_by_cost(
-  grid: grid2d.Grid2D(Bool),
-  distances_from_start: dict.Dict(grid2d.Index2D, Int),
-  distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-  fair_steps: Int,
-  max_cheat_steps: Int,
-  threshold: Int,
-) -> dict.Dict(Int, Int) {
-  let collected_cheat_path_costs =
-    collect_cheat_costs(
-      grid,
-      distances_from_start,
-      distances_to_goal,
-      fair_steps,
-      max_cheat_steps,
-      threshold,
-    )
-  list.fold(collected_cheat_path_costs, dict.new(), fn(acc, cheat_cost) {
-    let existing =
-      dict.get(acc, cheat_cost)
-      |> result.unwrap(0)
-    dict.insert(acc, cheat_cost, existing + 1)
-  })
-}
-
 /// Helper to test whether a tile lies along any fair shortest path by comparing
 /// the prefix distance from the start and suffix distance to the goal.
 fn on_shortest_path(steps_to: Int, steps_from: Int, fair_steps: Int) -> Bool {
   steps_to + steps_from == fair_steps
 }
 
-/// Gather the cheat step counts for every shortcut that satisfies the savings
-/// threshold. The outer fold walks each candidate entry index; the inner fold
-/// checks every potential landing spot for that entry and appends the cheat
-/// cost when all conditions are satisfied.
-fn collect_cheat_costs(
+/// Count how many shortcuts satisfy the savings threshold. The outer fold
+/// walks each candidate entry index; the inner fold checks every potential
+/// landing spot for that entry and increments the tally for every successful
+/// shortcut.
+fn count_worthwhile_cheats(
   grid: grid2d.Grid2D(Bool),
   distances_from_start: dict.Dict(grid2d.Index2D, Int),
   distances_to_goal: dict.Dict(grid2d.Index2D, Int),
-  fair_steps: Int,
-  max_cheat_steps: Int,
+  shortest_fair_path: Int,
+  cheat_steps: Int,
   threshold: Int,
-) -> List(Int) {
+) -> Int {
   dict.to_list(distances_from_start)
-  |> list.fold([], fn(acc, entry) {
-    let #(cheat_entry, steps_to_entry) = entry
+  |> list.fold(0, fn(valid_cheat_count, entry) {
+    let #(cheat_start_idx, steps_to_entry) = entry
 
+    // Check to see if it's possible to initiate a worthwhile cheat (one that
+    // will save at least the threshold of steps) at the `cheat_start_idx`
     case
-      valid_cheat_entry(
+      worthwhile_cheat_starts_at(
+        cheat_start_idx,
         steps_to_entry,
-        cheat_entry,
-        fair_steps,
+        shortest_fair_path,
         distances_to_goal,
       )
     {
-      False -> acc
-      True ->
-        cheat_targets(grid, cheat_entry, max_cheat_steps)
-        |> list.fold(acc, fn(acc_inner, target) {
-          let #(cheat_exit, cheat_cost) = target
+      // If not, just carry the accumulator forward
+      False -> valid_cheat_count
 
+      // If so, then we need to check the possible exit points for a cheat
+      // starting at `cheat_start_idx`. We'll count every exit point that 
+      // will save at least the threhshold of steps.
+      True ->
+        possible_cheat_exit_points(grid, cheat_start_idx, cheat_steps)
+        |> list.fold(valid_cheat_count, fn(inner_count, target) {
+          let #(cheat_end_idx, cheat_cost) = target
+
+          // For each proposed exit point, if a cheat ending at that point
+          // would save enough steps, count it.
           case
-            valid_cheat_exit(
+            worthwhile_cheat_ends_at(
+              cheat_end_idx,
               steps_to_entry,
-              cheat_exit,
               cheat_cost,
-              fair_steps,
+              shortest_fair_path,
               threshold,
               distances_from_start,
               distances_to_goal,
             )
           {
-            True -> [cheat_cost, ..acc_inner]
-            False -> acc_inner
+            True -> inner_count + 1
+            False -> inner_count
           }
         })
     }
   })
-  |> list.reverse
 }
 
-/// Determine whether a candidate entry tile could start a useful shortcut.
-fn valid_cheat_entry(
+/// Determine whether a possible cheat start tile could start a useful shortcut.
+/// A cheat may be worthwhile so long as it starts on one of the shortest paths
+/// to the goal.
+fn worthwhile_cheat_starts_at(
+  cheat_start_idx: grid2d.Index2D,
   steps_to_entry: Int,
-  cheat_entry: grid2d.Index2D,
   fair_steps: Int,
   distances_to_goal: dict.Dict(grid2d.Index2D, Int),
 ) -> Bool {
-  case dict.get(distances_to_goal, cheat_entry) {
+  case dict.get(distances_to_goal, cheat_start_idx) {
     Error(Nil) -> False
     Ok(steps_from_entry) ->
       on_shortest_path(steps_to_entry, steps_from_entry, fair_steps)
@@ -234,9 +219,9 @@ fn valid_cheat_entry(
 
 /// Determine whether the exit tile lies forward on the fair path and provides
 /// sufficient savings once the cheat is applied.
-fn valid_cheat_exit(
-  steps_to_entry: Int,
+fn worthwhile_cheat_ends_at(
   cheat_exit: grid2d.Index2D,
+  steps_to_entry: Int,
   cheat_cost: Int,
   fair_steps: Int,
   threshold: Int,
@@ -285,8 +270,8 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
   // finds the shortest path to each tile, with cheats turned off.
   let distances_to_goal = bfs_scan(grid, end)
 
-  let cheat_counts =
-    count_cheat_paths_by_cost(
+  let result =
+    count_worthwhile_cheats(
       grid,
       distances_from_start,
       distances_to_goal,
@@ -295,15 +280,7 @@ pub fn solve(input: Input, cheat_steps: Int, threshold: Int) -> Output {
       threshold,
     )
 
-  let qualifying =
-    dict.fold(cheat_counts, 0, fn(acc, cheat_cost, amount) {
-      case cheat_cost <= cheat_steps {
-        True -> acc + amount
-        False -> acc
-      }
-    })
-
-  Ok(qualifying)
+  Ok(result)
 }
 
 /// Convenience executable that runs the solver with the puzzle's default
